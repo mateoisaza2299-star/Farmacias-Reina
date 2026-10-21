@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es-CO">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Acceso interno | Droguerías Reina</title>
+  <meta name="description" content="Acceso del equipo de Droguerías Reina. No hay registro público.">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#127a3a">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="login">
+  <main class="login-wrap">
+    <form class="login-card" id="acceso">
+      <a class="logo" href="index.html" data-logo>
+        <span class="logo-text"><span class="logo-name" data-nombre>Droguerías Reina</span><span class="logo-place">Acceso interno</span></span>
+      </a>
+      <h1>Panel de la droguería</h1>
+      <p class="hint">Ingresa con la cuenta del equipo. No hay registro público.</p>
+      <p class="form-error" data-login-error role="alert" hidden></p>
+      <label>Correo
+        <input name="email" type="email" autocomplete="username" required>
+      </label>
+      <label>Contraseña
+        <input name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <button class="btn btn-primary" type="submit" data-entrar>Entrar</button>
+      <a href="index.html">Volver a la tienda</a>
+    </form>
+  </main>
+  <script type="module" src="js/login.js"></script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es-CO">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel | Droguerías Reina</title>
+  <meta name="description" content="Panel interno de pedidos, productos y ajustes de Droguerías Reina.">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#127a3a">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="admin">
+  <p class="auth-wait" data-wait>Comprobando acceso…</p>
+  <div data-app hidden>
+    <header class="admin-top">
+      <a class="logo" href="index.html" data-logo>
+        <span class="logo-text"><span class="logo-name">Droguerías Reina</span><span class="logo-place">Panel</span></span>
+      </a>
+      <div class="admin-user">
+        <span data-admin-email></span>
+        <button type="button" class="btn btn-ghost" data-salir>Salir</button>
+      </div>
+    </header>
+    <div class="tabs" role="tablist" aria-label="Secciones del panel">
+      <button type="button" role="tab" id="tab-pedidos" aria-controls="panel-pedidos" aria-selected="true" data-tab="pedidos">Pedidos</button>
+      <button type="button" role="tab" id="tab-productos" aria-controls="panel-productos" data-tab="productos">Productos</button>
+      <button type="button" role="tab" id="tab-ajustes" aria-controls="panel-ajustes" data-tab="ajustes">Ajustes</button>
+    </div>
+    <main id="contenido">
+      <section id="panel-pedidos" role="tabpanel" aria-labelledby="tab-pedidos" data-panel="pedidos"></section>
+      <section id="panel-productos" role="tabpanel" aria-labelledby="tab-productos" data-panel="productos" hidden></section>
+      <section id="panel-ajustes" role="tabpanel" aria-labelledby="tab-ajustes" data-panel="ajustes" hidden></section>
+    </main>
+  </div>
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>
