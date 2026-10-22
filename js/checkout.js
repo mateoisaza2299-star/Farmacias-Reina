@@ -3,7 +3,7 @@ import { leerConfig } from "./datos.js";
 import { celularValido, dinero, mensajeError } from "./format.js";
 import { itemsParaPedido, resumenCarrito, vaciarCarrito } from "./cart.js";
 import { guardarPedidoLocal } from "./pedidos.js";
-import { enlaceWhatsappPedido } from "./pago.js";
+import { enlaceWhatsapp, enlaceWhatsappPedido, mensajePedidoWhatsapp, montarPago } from "./pago.js";
 import { supabase } from "./supabase.js";
 import { el } from "./dom.js";
 import { iniciarLayout } from "./layout.js";
@@ -20,7 +20,6 @@ const LIMITE = 5 * 1024 * 1024;
 
 const FORMAS = {
   EFECTIVO: "Efectivo",
-  "DATÁFONO": "Datáfono",
   TRANSFERENCIA: "Transferencia"
 };
 
@@ -180,16 +179,66 @@ function mostrarExito(pedido) {
       el("p", {}, `Dirección: ${pedido.direccion || ""}`),
       el("p", {}, `Barrio: ${pedido.barrio || ""}`),
       el("p", {}, `Indicaciones: ${pedido.notas || ""}`),
-      el("p", {}, `Forma de pago: ${pedido.formaPago || ""}`),
+      formaVisible(pedido),
       pedido.formula ? el("p", {}, "Fórmula médica adjunta en la página") : null
     );
   }
   const wa = document.querySelector("[data-exito-wa]");
-  const href = enlaceWhatsappPedido(pedido);
-  if (wa && href) wa.href = href;
+  const enLinea = negocio.pagoEnLinea && !pedido.formula;
+  if (enLinea) {
+    if (wa) wa.hidden = true;
+    const zona = document.querySelector("[data-exito-pago]");
+    if (zona) {
+      zona.hidden = false;
+      montarPago(zona, pedido, "Pagar en línea");
+      if (negocio.pagoAlRecibir !== false) zona.append(opcionRecibir(pedido));
+    }
+  } else if (wa) {
+    const href = enlaceWhatsappPedido(pedido);
+    if (href) wa.href = href;
+  }
   const seguir = document.querySelector("[data-exito-seguir]");
   if (seguir && pedido.token) seguir.href = `seguimiento.html?pedido=${encodeURIComponent(pedido.token)}`;
   if (exito) exito.hidden = false;
+}
+
+function formaVisible(pedido) {
+  const nodo = el("p", { "data-exito-forma": "true" }, `Forma de pago: ${pedido.formaPago || ""}`);
+  if (!pedido.formaPago) nodo.hidden = true;
+  return nodo;
+}
+
+function opcionRecibir(pedido) {
+  const caja = el("section", { class: "pay-choice" });
+  const wa = el("a", {
+    class: "btn btn-whatsapp",
+    target: "_blank",
+    rel: "noopener noreferrer",
+    hidden: true
+  }, "Enviar pedido por WhatsApp");
+  const elegir = (forma) => {
+    pedido.formaPago = FORMAS[forma] || "";
+    pedido.indicaciones = `Pago: ${forma}. ${pedido.notas || ""}`.trim();
+    const formaNodo = document.querySelector("[data-exito-forma]");
+    if (formaNodo) {
+      formaNodo.hidden = false;
+      formaNodo.textContent = `Forma de pago: ${pedido.formaPago}`;
+    }
+    const href = enlaceWhatsapp(mensajePedidoWhatsapp(pedido));
+    if (href) {
+      wa.href = href;
+      wa.hidden = false;
+    }
+    supabase.from("pedidos").update({ indicaciones: pedido.indicaciones }).eq("token", pedido.token).then(() => {}, () => {});
+  };
+  caja.append(el("p", {}, "Pagar al recibir"));
+  Object.entries(FORMAS).forEach(([forma, etiqueta]) => {
+    const input = el("input", { type: "radio", name: "recibir", value: forma });
+    input.addEventListener("change", () => elegir(forma));
+    caja.append(el("label", { class: "check" }, input, el("span", {}, etiqueta)));
+  });
+  caja.append(wa);
+  return caja;
 }
 
 function prepararPago() {
@@ -271,7 +320,7 @@ async function enviar(evento) {
     };
     confirmado = true;
     vaciarCarrito();
-    if (negocio.pagoEnLinea) {
+    if (negocio.pagoEnLinea && ruta) {
       location.href = `seguimiento.html?pedido=${encodeURIComponent(token)}`;
       return;
     }

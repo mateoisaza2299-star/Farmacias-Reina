@@ -22,6 +22,7 @@ const ETIQUETAS = {
 
 export function etiquetaEstado(estado) {
   if (estado === "pendiente_pago" && negocio.pagoEnLinea === false) return "Por despachar · pago al recibir";
+  if (estado === "pagado" && negocio.pagoEnLinea) return "Pagado · por despachar";
   if (ETIQUETAS[estado]) return ETIQUETAS[estado];
   if (!estado) return "Estado desconocido";
   return String(estado).replaceAll("_", " ");
@@ -110,6 +111,7 @@ export function interpretarPedido(data) {
     barrio: data.barrio || "",
     indicaciones: data.indicaciones || "",
     formula_path: data.formula_path || data.formula || "",
+    wompi_ref: data.wompi_ref || "",
     avisado: data.avisado === true,
     created_at: data.created_at || data.creado_en || data.fecha || null,
     items: listaItems(data.items || data.pedido_items || data.productos || data.detalle)

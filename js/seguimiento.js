@@ -4,11 +4,25 @@ import { el } from "./dom.js";
 import { icono } from "./icons.js";
 import { dinero, fechaHora, mensajeError } from "./format.js";
 import { actualizarPedidoLocal, esToken, etiquetaEstado, interpretarPedido, leerPedidosLocal, PASOS } from "./pedidos.js";
-import { enlaceWhatsappPedido, montarPago } from "./pago.js";
+import { enlaceWhatsappPedido, montarPago, pagoRechazado, separarPago } from "./pago.js";
 import { iniciarLayout } from "./layout.js";
 
 let timer = 0;
 let cargando = false;
+let pagoFallido = false;
+let pagoListo = false;
+
+function vuelveDePago() {
+  if (!negocio.pagoEnLinea) return false;
+  const params = new URLSearchParams(location.search);
+  return params.get("pago") === "1" || params.has("id");
+}
+
+const inicioPago = vuelveDePago() ? Date.now() : 0;
+
+function confirmando() {
+  return vuelveDePago() && !pagoFallido && !pagoListo && Date.now() - inicioPago < 120000;
+}
 
 function tokenPrincipal() {
   const params = new URLSearchParams(location.search);
@@ -108,10 +122,25 @@ function tarjeta(pedido, destacado) {
   }
   articulo.append(el("p", { class: "track-total" }, el("span", {}, "Total"), el("strong", {}, pedido.total == null ? "Por confirmar" : dinero(pedido.total))));
   articulo.append(lineaEstados(pedido));
-  if (negocio.pagoEnLinea && pedido.estado === "pendiente_pago") {
-    const pago = el("div", { class: "pay-box", "data-pago": "true" });
+  const confirmar = destacado && vuelveDePago();
+  const recibir = Boolean(separarPago(pedido.indicaciones).forma);
+  if (confirmar && pedido.estado === "pagado") {
+    articulo.append(exitoPago(pedido));
+  } else if (confirmar && pagoFallido && pedido.estado === "pendiente_pago") {
+    articulo.append(el("p", { class: "callout callout-warn" }, "No se pudo completar el pago"));
+    const reintento = el("div", { class: "pay-box" });
+    articulo.append(reintento);
+    montarPago(reintento, pedido, "Reintentar pago");
+  } else if (confirmar && pedido.estado === "pendiente_pago") {
+    const tarde = Date.now() - inicioPago >= 120000;
+    const texto = tarde
+      ? "Tu pago está siendo verificado. Te avisaremos apenas se confirme."
+      : "Estamos confirmando tu pago…";
+    articulo.append(el("p", { class: "callout", role: "status" }, texto));
+  } else if (negocio.pagoEnLinea && pedido.estado === "pendiente_pago" && !recibir) {
+    const pago = el("div", { class: "pay-box" });
     articulo.append(pago);
-    montarPago(pago, pedido);
+    montarPago(pago, pedido, "Pagar ahora");
   } else {
     const enlace = enlaceWhatsappPedido(pedido);
     const etiqueta = !negocio.pagoEnLinea && (pedido.estado === "pendiente_pago" || pedido.estado === "revision")
@@ -120,6 +149,15 @@ function tarjeta(pedido, destacado) {
     if (enlace) articulo.append(el("a", { class: "btn btn-whatsapp", href: enlace, target: "_blank", rel: "noopener noreferrer" }, etiqueta));
   }
   return articulo;
+}
+
+function exitoPago(pedido) {
+  const enlace = enlaceWhatsappPedido(pedido);
+  return el("div", { class: "pay-result" },
+    el("span", { class: "pay-check", "aria-hidden": "true" }),
+    el("p", { class: "pay-result-title" }, "Pago confirmado"),
+    enlace ? el("a", { class: "btn btn-whatsapp", href: enlace, target: "_blank", rel: "noopener noreferrer" }, "Enviar pedido por WhatsApp") : null
+  );
 }
 
 function vacio(mensaje) {
@@ -160,6 +198,12 @@ async function refrescar() {
       }
     }));
     const principal = tokenPrincipal();
+    const idPago = new URLSearchParams(location.search).get("id");
+    if (vuelveDePago() && idPago && !pagoFallido) {
+      const actual = pedidos.find((pedido) => pedido && !pedido.error && pedido.token === principal);
+      if (actual?.estado === "pendiente_pago" && await pagoRechazado(idPago)) pagoFallido = true;
+    }
+    if (pedidos.some((pedido) => pedido && !pedido.error && pedido.token === principal && pedido.estado === "pagado")) pagoListo = true;
     raiz.replaceChildren();
     let alguno = false;
     pedidos.forEach((pedido) => {
@@ -181,14 +225,28 @@ async function refrescar() {
   }
 }
 
+function esperaRefresco() {
+  if (confirmando()) return 3000;
+  return 30000;
+}
+
 function programar() {
   clearInterval(timer);
+  const espera = esperaRefresco();
   timer = setInterval(() => {
-    if (document.visibilityState === "visible") refrescar();
-  }, 30000);
+    if (document.visibilityState !== "visible") return;
+    refrescar().finally(() => {
+      if (esperaRefresco() !== espera) programar();
+    });
+  }, espera);
 }
 
 iniciarLayout();
+if (vuelveDePago()) {
+  document.querySelector("[data-seguimiento]")?.replaceChildren(
+    el("p", { class: "callout", role: "status" }, "Estamos confirmando tu pago…")
+  );
+}
 refrescar();
 programar();
 document.addEventListener("visibilitychange", () => {

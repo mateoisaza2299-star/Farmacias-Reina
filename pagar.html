@@ -93,7 +93,6 @@
           <section class="pay-choice" data-pago-recibir>
             <p>Forma de pago al recibir</p>
             <label class="check"><input type="radio" name="pago" value="EFECTIVO" aria-describedby="pago-error"><span>Efectivo</span></label>
-            <label class="check"><input type="radio" name="pago" value="DATÁFONO" aria-describedby="pago-error"><span>Datáfono</span></label>
             <label class="check"><input type="radio" name="pago" value="TRANSFERENCIA" aria-describedby="pago-error"><span>Transferencia</span></label>
             <p class="field-error" id="pago-error" hidden></p>
           </section>
@@ -134,6 +133,7 @@
     <section class="checkout-success" data-exito hidden>
       <h2 data-exito-numero>Pedido recibido</h2>
       <div class="summary" data-exito-resumen></div>
+      <div data-exito-pago hidden></div>
       <a class="btn btn-whatsapp" data-exito-wa target="_blank" rel="noopener noreferrer">Enviar pedido por WhatsApp</a>
       <a class="btn btn-ghost" data-exito-seguir href="seguimiento.html">Ver seguimiento</a>
     </section>

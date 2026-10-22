@@ -703,7 +703,46 @@ html.scroll-lock, html.scroll-lock body { overflow: hidden; }
 .pay-choice > p:first-child { font-weight: 700; }
 .checkout-success { display: grid; gap: 14px; max-width: 720px; }
 .checkout-success .summary { order: 0; position: static; }
-.checkout-success .btn-whatsapp { min-height: 52px; }
+.checkout-success .btn-whatsapp,
+.checkout-success .btn-primary,
+.pay-box .btn-primary { min-height: 52px; width: 100%; }
+.pay-box { display: grid; gap: 10px; }
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  animation: pay-spin 0.7s linear infinite;
+  flex: 0 0 auto;
+}
+.pay-result { display: grid; gap: 12px; justify-items: center; text-align: center; }
+.pay-result-title { font-weight: 800; font-size: 1.25rem; }
+.pay-result .btn-whatsapp { width: 100%; }
+.pay-check {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--green);
+  display: grid;
+  place-items: center;
+}
+.pay-check::before {
+  content: "";
+  width: 14px;
+  height: 26px;
+  margin-top: -4px;
+  border-right: 4px solid white;
+  border-bottom: 4px solid white;
+  transform: rotate(45deg) scale(0.2);
+  animation: pay-check 0.45s ease forwards;
+}
+.order-card.is-paid {
+  background: var(--green-soft);
+  box-shadow: 0 0 0 2px var(--green);
+}
+@keyframes pay-spin { to { transform: rotate(360deg); } }
+@keyframes pay-check { to { transform: rotate(45deg) scale(1); } }
 .track-card.is-main { box-shadow: 0 16px 36px rgba(0, 119, 213, 0.12); }
 .steps { list-style: none; display: grid; gap: 8px; margin-top: 8px; }
 .steps li { display: flex; align-items: center; gap: 8px; color: var(--muted); }
@@ -913,6 +952,8 @@ input.is-saved { box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.25); }
   .product:hover .product-glint { animation: none; }
   .product:hover .product-art { transform: none; }
   .product-glint { opacity: 0; transform: none; }
+  .spinner, .pay-check::before { animation: none; }
+  .pay-check::before { transform: rotate(45deg) scale(1); }
 }
 .pendiente { color: var(--muted); }
 .btn.btn-add,

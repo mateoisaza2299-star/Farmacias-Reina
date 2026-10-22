@@ -2,6 +2,7 @@ export const negocio = {
   nombre: "Droguerías Reina",
   modoPrueba: true,
   pagoEnLinea: false,
+  pagoAlRecibir: true,
   whatsappPrueba: "573108813365",
   whatsappPedidos: "573003664793",
   slogan: "Medicamentos de calidad a los mejores precios",

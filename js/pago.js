@@ -1,39 +1,91 @@
 import { negocio } from "./config.js";
 import { dinero, soloDigitos } from "./format.js";
 
-const WOMPI_PUBLIC_KEY = "";
-const WOMPI_MONEDA = "COP";
+const MENSAJES_PAGO = {
+  revision: "El regente está validando tu fórmula.",
+  pagado: "Este pedido ya está pagado.",
+  cancelado: "Este pedido fue cancelado.",
+  rechazado: "Este pedido fue rechazado."
+};
 
-export function referenciaPedido(pedido) {
-  if (pedido?.numero) return `REINA-${pedido.numero}`;
-  const token = String(pedido?.token || "").replace(/-/g, "").slice(0, 10);
-  return `REINA-${token || "PEDIDO"}`;
+const FALLIDOS = new Set(["DECLINED", "ERROR", "VOIDED"]);
+
+export function urlRetorno(token) {
+  const carpeta = location.pathname.replace(/[^/]*$/, "");
+  const destino = new URL(`${carpeta}seguimiento.html`, location.origin);
+  destino.searchParams.set("pedido", token);
+  destino.searchParams.set("pago", "1");
+  return destino.href;
 }
 
-export function datosWompi(pedido) {
-  const total = Number(pedido?.total);
-  return {
-    publicKey: WOMPI_PUBLIC_KEY,
-    referencia: referenciaPedido(pedido),
-    moneda: WOMPI_MONEDA,
-    montoEnCentavos: Number.isFinite(total) ? Math.round(total * 100) : 0
-  };
+export function enlaceCheckout(datos, pedido) {
+  const campos = [
+    ["public-key", datos.publicKey],
+    ["currency", "COP"],
+    ["amount-in-cents", String(datos.centavos)],
+    ["reference", datos.referencia],
+    ["signature:integrity", datos.firma],
+    ["redirect-url", urlRetorno(pedido.token)],
+    ["customer-data:full-name", pedido?.nombre || ""],
+    ["customer-data:phone-number", soloDigitos(pedido?.telefono)],
+    ["customer-data:phone-number-prefix", "+57"]
+  ];
+  const query = campos.map(([clave, valor]) => `${encodeURIComponent(clave)}=${encodeURIComponent(valor)}`).join("&");
+  return `https://checkout.wompi.co/p/?${query}`;
 }
 
-export function iniciarPago(pedido) {
-  const datos = datosWompi(pedido);
-  if (!datos.publicKey) {
-    return {
-      listo: false,
-      mensaje: "Falta configurar el pago en línea.",
-      ...datos
-    };
+function avisoPrueba() {
+  document.querySelectorAll("[data-pago-prueba]").forEach((nodo) => {
+    nodo.hidden = false;
+    nodo.textContent = "Pagos en modo de prueba";
+  });
+}
+
+export async function iniciarPago(pedido) {
+  const token = pedido?.token;
+  if (!token) return { listo: false, mensaje: "No encontramos el pedido para pagar." };
+  const { clavePublica, urlSupabase } = await import("./supabase.js");
+  const respuesta = await fetch(`${urlSupabase}/functions/v1/crear-pago`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      apikey: clavePublica
+    },
+    body: JSON.stringify({ token })
+  });
+  const cuerpo = await respuesta.json().catch(() => ({}));
+  if (respuesta.status === 409) {
+    return { listo: false, estado: cuerpo.estado || "", mensaje: MENSAJES_PAGO[cuerpo.estado] || "Este pedido no admite pago en línea." };
   }
-  return {
-    listo: true,
-    mensaje: "Pago en línea listo para continuar.",
-    ...datos
-  };
+  if (!respuesta.ok || !cuerpo.publicKey || !cuerpo.referencia || cuerpo.centavos == null || !cuerpo.firma) {
+    return { listo: false, mensaje: "No pudimos preparar el pago." };
+  }
+  const prueba = String(cuerpo.publicKey).startsWith("pub_test_");
+  if (prueba) avisoPrueba();
+  location.assign(enlaceCheckout(cuerpo, pedido));
+  return { listo: true, prueba, mensaje: prueba ? "Pagos en modo de prueba" : "" };
+}
+
+export async function pagoRechazado(idTransaccion) {
+  const id = String(idTransaccion || "").trim();
+  if (!id) return false;
+  const rutas = [
+    `https://production.wompi.co/v1/transactions/${encodeURIComponent(id)}`,
+    `https://sandbox.wompi.co/v1/transactions/${encodeURIComponent(id)}`
+  ];
+  for (const ruta of rutas) {
+    try {
+      const respuesta = await fetch(ruta);
+      if (!respuesta.ok) continue;
+      const cuerpo = await respuesta.json();
+      const status = String(cuerpo?.data?.status || "").toUpperCase();
+      if (!status) continue;
+      return FALLIDOS.has(status);
+    } catch {
+      continue;
+    }
+  }
+  return false;
 }
 
 const FORMAS = {
@@ -139,27 +191,51 @@ export function enlaceAvisarCliente(pedido) {
   return `https://wa.me/${destino}?text=${encodeURIComponent(texto)}`;
 }
 
-export function montarPago(contenedor, pedido) {
-  const resultado = iniciarPago(pedido);
+export function montarPago(contenedor, pedido, etiqueta = "Pagar ahora") {
   contenedor.replaceChildren();
-  contenedor.dataset.referencia = resultado.referencia;
-  contenedor.dataset.moneda = resultado.moneda;
-  contenedor.dataset.monto = String(resultado.montoEnCentavos);
-  if (resultado.publicKey) contenedor.dataset.publicKey = resultado.publicKey;
-  else delete contenedor.dataset.publicKey;
+  const aviso = document.createElement("p");
+  aviso.className = "pay-note";
+  aviso.dataset.pagoPrueba = "true";
+  aviso.hidden = true;
+  const boton = document.createElement("button");
+  boton.type = "button";
+  boton.className = "btn btn-primary";
+  const spinner = document.createElement("span");
+  spinner.className = "spinner";
+  spinner.hidden = true;
+  spinner.setAttribute("aria-hidden", "true");
+  const texto = document.createElement("span");
+  texto.textContent = etiqueta;
+  boton.append(spinner, texto);
   const nota = document.createElement("p");
-  nota.className = "pay-note";
-  nota.textContent = resultado.mensaje;
-  contenedor.append(nota);
-  const enlace = enlaceWhatsappPedido(pedido);
-  if (enlace) {
-    const boton = document.createElement("a");
-    boton.className = "btn btn-whatsapp";
-    boton.href = enlace;
-    boton.target = "_blank";
-    boton.rel = "noopener noreferrer";
-    boton.textContent = "Enviar pedido por WhatsApp";
-    contenedor.append(boton);
-  }
-  return resultado;
+  nota.className = "fine";
+  nota.textContent = "Pago seguro con Wompi: tarjeta, PSE, Nequi y Bancolombia. No guardamos los datos de tu tarjeta.";
+  const error = document.createElement("p");
+  error.className = "form-error";
+  error.hidden = true;
+  error.setAttribute("role", "alert");
+  boton.addEventListener("click", async () => {
+    if (boton.disabled) return;
+    boton.disabled = true;
+    boton.setAttribute("aria-busy", "true");
+    spinner.hidden = false;
+    error.hidden = true;
+    try {
+      const resultado = await iniciarPago(pedido);
+      if (!resultado.listo) {
+        error.hidden = false;
+        error.textContent = resultado.mensaje;
+        boton.disabled = false;
+        boton.removeAttribute("aria-busy");
+        spinner.hidden = true;
+      }
+    } catch {
+      error.hidden = false;
+      error.textContent = "No pudimos preparar el pago.";
+      boton.disabled = false;
+      boton.removeAttribute("aria-busy");
+      spinner.hidden = true;
+    }
+  });
+  contenedor.append(aviso, boton, nota, error);
 }

@@ -26,7 +26,7 @@ const ESTADOS_FILTRO = [
   ["activos", "En curso"],
   ["revision", "En revisión"],
   ["pendiente_pago", negocio.pagoEnLinea ? "Pendiente de pago" : "Por despachar"],
-  ...(negocio.pagoEnLinea ? [["pagado", "Pagado"]] : []),
+  ...(negocio.pagoEnLinea ? [["pagado", "Pagado · por despachar"]] : []),
   ["despachado", "Despachado"],
   ["entregado", "Entregado"],
   ["rechazado", "Rechazado"],
@@ -181,11 +181,52 @@ async function leerPedidos() {
     }
   }
   lista.sort((a, b) => {
+    if (negocio.pagoEnLinea) {
+      const pa = a.estado === "pagado" ? 0 : 1;
+      const pb = b.estado === "pagado" ? 0 : 1;
+      if (pa !== pb) return pa - pb;
+    }
     const peso = prioridadEstado(a.estado) - prioridadEstado(b.estado);
     if (peso) return peso;
     return new Date(b.created_at || 0) - new Date(a.created_at || 0);
   });
   return lista;
+}
+
+function tonoCorto() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gan = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 880;
+    gan.gain.value = 0.04;
+    osc.connect(gan);
+    gan.connect(ctx.destination);
+    const empezar = () => {
+      osc.start();
+      osc.stop(ctx.currentTime + 0.12);
+      osc.onended = () => ctx.close();
+    };
+    if (ctx.state === "suspended") ctx.resume().then(empezar).catch(() => ctx.close());
+    else empezar();
+  } catch {
+    return;
+  }
+}
+
+let pagadosVistos = null;
+
+function anunciarPagados(lista) {
+  if (!negocio.pagoEnLinea) return;
+  const ids = new Set(lista.filter((pedido) => pedido.estado === "pagado" && pedido.id).map((pedido) => pedido.id));
+  if (pagadosVistos && [...ids].some((id) => !pagadosVistos.has(id))) {
+    if (navigator.vibrate) navigator.vibrate(120);
+    tonoCorto();
+  }
+  pagadosVistos = ids;
 }
 
 function anunciarNuevos(lista) {
@@ -206,7 +247,8 @@ function anunciarNuevos(lista) {
 function pedidosVisibles() {
   const q = textoPedido.trim().toLowerCase();
   return pedidos.filter((pedido) => {
-    if (filtroPedido === "activos" && !["revision", "pendiente_pago"].includes(pedido.estado)) return false;
+    const curso = negocio.pagoEnLinea ? ["revision", "pendiente_pago", "pagado"] : ["revision", "pendiente_pago"];
+    if (filtroPedido === "activos" && !curso.includes(pedido.estado)) return false;
     if (filtroPedido !== "activos" && filtroPedido !== "todos" && pedido.estado !== filtroPedido) return false;
     if (!q) return true;
     return `${pedido.numero || ""} ${pedido.nombre} ${pedido.telefono}`.toLowerCase().includes(q);
@@ -340,9 +382,10 @@ function tarjetaPedido(pedido) {
   if (!negocio.pagoEnLinea) {
     if (pedido.estado === "pendiente_pago" || pedido.estado === "pagado") acciones.push(botonEstado(pedido, "Despachar", "despachado", false));
     if (pedido.estado === "despachado") acciones.push(botonEstado(pedido, "Entregado", "entregado", false));
-  } else {
-    if (!terminal && pedido.estado !== "revision" && pedido.estado !== "despachado") acciones.push(botonEstado(pedido, "Despachado", "despachado", false));
-    if (!terminal && pedido.estado !== "revision" && pedido.estado !== "entregado") acciones.push(botonEstado(pedido, "Entregado", "entregado", false));
+  } else if (pedido.estado === "pagado") {
+    acciones.push(botonEstado(pedido, "Despachar", "despachado", false));
+  } else if (pedido.estado === "despachado") {
+    acciones.push(botonEstado(pedido, "Entregado", "entregado", false));
   }
   if (!terminal) acciones.push(botonEstado(pedido, "Cancelar", "cancelado", true));
   acciones.push(el("button", {
@@ -352,7 +395,8 @@ function tarjetaPedido(pedido) {
     onclick: () => avisarCliente(pedido)
   }, "Avisar por WhatsApp"));
   const pago = separarPago(pedido.indicaciones);
-  return el("article", { class: "order-card" },
+  const destacado = negocio.pagoEnLinea && pedido.estado === "pagado" ? "order-card is-paid" : "order-card";
+  return el("article", { class: destacado },
     el("div", { class: "order-top" },
       el("h3", {}, pedido.numero ? `N.º ${pedido.numero}` : "Pedido"),
       el("time", {}, fechaHora(pedido.created_at) || "Hora por confirmar"),
@@ -363,6 +407,7 @@ function tarjetaPedido(pedido) {
     el("p", {}, [pedido.direccion, pedido.barrio].filter(Boolean).join(" · ") || "Sin dirección"),
     pago.forma ? el("p", {}, `Forma de pago: ${pago.forma}`) : null,
     pago.notas ? el("p", { class: "hint" }, `Indicaciones: ${pago.notas}`) : null,
+    negocio.pagoEnLinea && pedido.wompi_ref ? el("p", { class: "hint" }, `Referencia: ${pedido.wompi_ref}`) : null,
     el("ul", { class: "order-items" }, ...(pedido.items.length ? pedido.items : [{ nombre: "Sin detalle de productos", cantidad: "" }]).map((item) => el("li", {}, `${item.nombre}${item.presentacion ? ` · ${item.presentacion}` : ""}${item.cantidad ? ` × ${item.cantidad}` : ""}`))),
     el("p", { class: "order-total" }, `Total ${pedido.total == null ? "por confirmar" : dinero(pedido.total)}`),
     el("p", { class: pedido.avisado ? "avisado is-ok" : "avisado" }, pedido.avisado ? "Cliente avisado ✓" : "Falta avisar"),
@@ -387,6 +432,7 @@ async function cargarPedidos(silencioso = false) {
   try {
     const listaNueva = await leerPedidos();
     anunciarNuevos(listaNueva);
+    anunciarPagados(listaNueva);
     pedidos = listaNueva;
     pintarPedidos();
   } catch (error) {
