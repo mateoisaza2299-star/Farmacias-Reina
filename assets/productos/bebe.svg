@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" fill="none">
+  <defs>
+    <linearGradient id="cuerpo" x1="70" y1="50" x2="180" y2="200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff7ed"/>
+      <stop offset="0.35" stop-color="#fdba74"/>
+      <stop offset="1" stop-color="#ea580c"/>
+    </linearGradient>
+    <linearGradient id="leche" x1="80" y1="90" x2="160" y2="190" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#ffedd5" stop-opacity="0.4"/>
+    </linearGradient>
+    <linearGradient id="brillo" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#fff" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="sombra" cx="50%" cy="50%" r="50%">
+      <stop stop-color="#0f172a" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#0f172a" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="biberon">
+      <path d="M92 86h56l10 96a22 22 0 0 1-22 22h-32a22 22 0 0 1-22-22l10-96z"/>
+    </clipPath>
+  </defs>
+  <ellipse cx="120" cy="206" rx="58" ry="12" fill="url(#sombra)"/>
+  <ellipse cx="120" cy="52" rx="16" ry="12" fill="#fed7aa"/>
+  <rect x="108" y="58" width="24" height="18" rx="6" fill="#fdba74"/>
+  <path d="M92 86h56l10 96a22 22 0 0 1-22 22h-32a22 22 0 0 1-22-22l10-96z" fill="url(#cuerpo)"/>
+  <path d="M98 108h44l8 70H90l8-70z" fill="url(#leche)"/>
+  <g clip-path="url(#biberon)">
+    <ellipse cx="112" cy="104" rx="24" ry="14" fill="url(#brillo)"/>
+  </g>
+  <path d="M96 124h48M98 140h44M100 156h40" stroke="#fff" stroke-opacity="0.55" stroke-width="3" stroke-linecap="round"/>
+</svg>

@@ -15,6 +15,13 @@ export function descuento(precio, anterior) {
   return Math.round((1 - actual / antes) * 100);
 }
 
+export function marcaVisible(marca) {
+  const texto = String(marca ?? "").trim();
+  const plano = texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (!plano || plano === "generico") return "";
+  return texto;
+}
+
 export function esFormula(valor) {
   return valor === true || valor === "true" || valor === "t" || valor === 1 || valor === "1" || valor === "si" || valor === "sí";
 }

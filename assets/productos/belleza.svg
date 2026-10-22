@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" fill="none">
+  <defs>
+    <linearGradient id="cuerpo" x1="60" y1="70" x2="180" y2="200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffe4e6"/>
+      <stop offset="0.4" stop-color="#fb7185"/>
+      <stop offset="1" stop-color="#be123c"/>
+    </linearGradient>
+    <linearGradient id="tapa" x1="70" y1="60" x2="170" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff1f2"/>
+      <stop offset="1" stop-color="#fda4af"/>
+    </linearGradient>
+    <linearGradient id="brillo" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#fff" stop-opacity="0.92"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="sombra" cx="50%" cy="50%" r="50%">
+      <stop stop-color="#0f172a" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#0f172a" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="tarro">
+      <rect x="64" y="108" width="112" height="78" rx="24"/>
+    </clipPath>
+  </defs>
+  <ellipse cx="120" cy="204" rx="70" ry="13" fill="url(#sombra)"/>
+  <rect x="72" y="78" width="96" height="28" rx="12" fill="url(#tapa)"/>
+  <rect x="86" y="68" width="68" height="16" rx="8" fill="#fff1f2"/>
+  <rect x="64" y="108" width="112" height="78" rx="24" fill="url(#cuerpo)"/>
+  <g clip-path="url(#tarro)">
+    <ellipse cx="108" cy="124" rx="40" ry="16" fill="url(#brillo)"/>
+  </g>
+  <ellipse cx="120" cy="146" rx="28" ry="8" fill="#fff" opacity="0.28"/>
+</svg>

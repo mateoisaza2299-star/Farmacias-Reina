@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" fill="none">
+  <defs>
+    <linearGradient id="cuerpo" x1="50" y1="60" x2="190" y2="200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f8fafc"/>
+      <stop offset="0.45" stop-color="#e2e8f0"/>
+      <stop offset="1" stop-color="#94a3b8"/>
+    </linearGradient>
+    <linearGradient id="cruz" x1="90" y1="90" x2="160" y2="170" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#86efac"/>
+      <stop offset="1" stop-color="#15803d"/>
+    </linearGradient>
+    <linearGradient id="brillo" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#fff" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="sombra" cx="50%" cy="50%" r="50%">
+      <stop stop-color="#0f172a" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#0f172a" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="caja">
+      <rect x="52" y="78" width="136" height="104" rx="22"/>
+    </clipPath>
+  </defs>
+  <ellipse cx="120" cy="202" rx="74" ry="13" fill="url(#sombra)"/>
+  <rect x="92" y="62" width="56" height="22" rx="8" fill="#cbd5e1"/>
+  <rect x="52" y="78" width="136" height="104" rx="22" fill="url(#cuerpo)"/>
+  <g clip-path="url(#caja)">
+    <ellipse cx="104" cy="98" rx="46" ry="18" fill="url(#brillo)"/>
+  </g>
+  <rect x="108" y="104" width="24" height="56" rx="6" fill="url(#cruz)"/>
+  <rect x="92" y="120" width="56" height="24" rx="6" fill="url(#cruz)"/>
+</svg>

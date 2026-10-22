@@ -56,6 +56,71 @@
     <section class="hero" id="inicio">
       <div class="container">
         <div class="hero-card reveal">
+          <div class="hero-art" aria-hidden="true">
+            <svg viewBox="0 0 280 240">
+              <defs>
+                <linearGradient id="hero-verde" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#e9fff2"/>
+                  <stop offset="0.42" stop-color="#4ade80"/>
+                  <stop offset="1" stop-color="#0f7a3c"/>
+                </linearGradient>
+                <linearGradient id="hero-azul" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#f8fbff"/>
+                  <stop offset="0.4" stop-color="#93c5fd"/>
+                  <stop offset="1" stop-color="#1d4ed8"/>
+                </linearGradient>
+                <linearGradient id="hero-vidrio" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#ffffff" stop-opacity="0.96"/>
+                  <stop offset="0.55" stop-color="#e0f2fe" stop-opacity="0.72"/>
+                  <stop offset="1" stop-color="#bfdbfe" stop-opacity="0.38"/>
+                </linearGradient>
+                <linearGradient id="hero-brillo" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/>
+                  <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+                </linearGradient>
+                <radialGradient id="hero-sombra" cx="50%" cy="50%" r="50%">
+                  <stop offset="0" stop-color="#042014" stop-opacity="0.32"/>
+                  <stop offset="1" stop-color="#042014" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+              <g class="hero-float">
+                <ellipse cx="74" cy="196" rx="48" ry="10" fill="url(#hero-sombra)"/>
+                <g transform="rotate(-28 78 132)">
+                  <rect x="34" y="116" width="96" height="34" rx="17" fill="url(#hero-azul)"/>
+                  <rect x="82" y="116" width="48" height="34" rx="17" fill="url(#hero-verde)"/>
+                  <rect x="82" y="116" width="18" height="34" fill="url(#hero-verde)"/>
+                  <ellipse cx="58" cy="126" rx="22" ry="6" fill="url(#hero-brillo)"/>
+                </g>
+                <g transform="rotate(16 118 158)">
+                  <rect x="86" y="146" width="72" height="26" rx="13" fill="url(#hero-verde)"/>
+                  <rect x="86" y="146" width="36" height="26" rx="13" fill="#f0fdf4"/>
+                  <ellipse cx="104" cy="154" rx="16" ry="4" fill="#ffffff" opacity="0.8"/>
+                </g>
+              </g>
+              <g class="hero-float hero-float-b">
+                <ellipse cx="214" cy="198" rx="36" ry="9" fill="url(#hero-sombra)"/>
+                <rect x="198" y="86" width="34" height="12" rx="5" fill="#e2e8f0"/>
+                <rect x="206" y="76" width="18" height="14" rx="4" fill="#f8fafc"/>
+                <rect x="186" y="96" width="58" height="90" rx="18" fill="url(#hero-vidrio)"/>
+                <rect x="186" y="96" width="58" height="26" rx="18" fill="#ffffff" opacity="0.4"/>
+                <rect x="198" y="122" width="34" height="44" rx="8" fill="url(#hero-verde)" opacity="0.9"/>
+                <ellipse cx="204" cy="112" rx="12" ry="5" fill="#ffffff" opacity="0.85"/>
+              </g>
+              <g class="hero-float hero-float-d">
+                <ellipse cx="142" cy="188" rx="24" ry="7" fill="url(#hero-sombra)"/>
+                <rect x="124" y="132" width="36" height="10" rx="4" fill="#f8fafc"/>
+                <rect x="118" y="140" width="48" height="40" rx="12" fill="url(#hero-vidrio)"/>
+                <rect x="118" y="140" width="48" height="14" rx="12" fill="#ffffff" opacity="0.55"/>
+                <ellipse cx="132" cy="152" rx="10" ry="3" fill="#ffffff" opacity="0.7"/>
+              </g>
+              <g class="hero-float hero-float-c">
+                <ellipse cx="156" cy="78" rx="26" ry="7" fill="url(#hero-sombra)"/>
+                <circle cx="156" cy="46" r="26" fill="url(#hero-verde)"/>
+                <path fill="#ffffff" d="M150 28h12v12h12v12h-12v12h-12V52h-12V40h12z"/>
+                <ellipse cx="148" cy="38" rx="10" ry="4" fill="#ffffff" opacity="0.5"/>
+              </g>
+            </svg>
+          </div>
           <p class="eyebrow">Funza, Cundinamarca</p>
           <h1>Tu droguería de confianza en Funza</h1>
           <p class="hero-lead">Pide medicamentos y productos de cuidado con domicilio en el municipio y la revisión de un profesional.</p>

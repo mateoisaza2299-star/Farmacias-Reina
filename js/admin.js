@@ -3,7 +3,7 @@ import { categorias } from "./config.js";
 import { sesionAdmin } from "./acceso.js";
 import { el } from "./dom.js";
 import { icono, marcaLogo } from "./icons.js";
-import { dinero, esFormula, fechaHora, mensajeError, parseNumero, soloDigitos } from "./format.js";
+import { dinero, esFormula, fechaHora, marcaVisible, mensajeError, parseNumero, soloDigitos } from "./format.js";
 import { etiquetaEstado, interpretarPedido, prioridadEstado } from "./pedidos.js";
 import { enlaceAvisarCliente } from "./pago.js";
 import { avisar } from "./layout.js";
@@ -507,7 +507,7 @@ function filaProducto(producto) {
     media,
     el("div", {},
       el("h3", {}, producto.nombre),
-      el("p", { class: "hint" }, [producto.marca, producto.presentacion, producto.categoria].filter(Boolean).join(" · "))
+      el("p", { class: "hint" }, [marcaVisible(producto.marca), producto.presentacion, producto.categoria].filter(Boolean).join(" · "))
     ),
     el("label", {}, "Precio", precio),
     el("label", {}, "Stock", stock),

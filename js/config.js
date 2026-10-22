@@ -1,5 +1,6 @@
 export const negocio = {
   nombre: "Droguerías Reina",
+  beta: true,
   slogan: "Tu droguería de confianza en Funza",
   razonSocial: "EDITAR: razón social",
   nit: "EDITAR: NIT",

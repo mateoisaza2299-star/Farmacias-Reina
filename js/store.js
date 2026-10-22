@@ -2,7 +2,7 @@ import { supabase } from "./supabase.js";
 import { categorias } from "./config.js";
 import { el } from "./dom.js";
 import { icono } from "./icons.js";
-import { descuento, dinero, esFormula, sanearBusqueda } from "./format.js";
+import { descuento, dinero, esFormula, marcaVisible, sanearBusqueda } from "./format.js";
 import { agregarProducto, sincronizarCarrito } from "./cart.js";
 import { avisar, cerrarCarrito, volarAlCarrito } from "./layout.js";
 
@@ -18,9 +18,55 @@ const estado = {
   total: 0
 };
 
+const ILUSTRACIONES = {
+  Medicamentos: "assets/productos/medicamentos.svg",
+  "Cuidado personal": "assets/productos/cuidado.svg",
+  "Bebé": "assets/productos/bebe.svg",
+  "Belleza y dermocosmética": "assets/productos/belleza.svg",
+  "Vitaminas y suplementos": "assets/productos/vitaminas.svg",
+  "Botiquín": "assets/productos/botiquin.svg",
+  "Adulto mayor": "assets/productos/adulto.svg",
+  "Hogar y aseo": "assets/productos/hogar.svg"
+};
+
 let secuencia = 0;
 let fichaAbierta = null;
 let soltarFicha = null;
+let observadorArte = null;
+
+function ilustracionDe(categoria) {
+  return ILUSTRACIONES[categoria] || ILUSTRACIONES.Medicamentos;
+}
+
+function desfase(id) {
+  const texto = String(id ?? "");
+  let n = 0;
+  for (let i = 0; i < texto.length; i += 1) n = (n + texto.charCodeAt(i) * (i + 1)) % 8;
+  return n;
+}
+
+function vigilarArte() {
+  const tarjetas = document.querySelectorAll(".product");
+  const reducido = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reducido) {
+    tarjetas.forEach((tarjeta) => tarjeta.classList.remove("is-live"));
+    if (observadorArte) observadorArte.disconnect();
+    return;
+  }
+  if (!("IntersectionObserver" in window)) {
+    tarjetas.forEach((tarjeta) => tarjeta.classList.add("is-live"));
+    return;
+  }
+  if (!observadorArte) {
+    observadorArte = new IntersectionObserver((entradas) => {
+      entradas.forEach((entrada) => {
+        entrada.target.classList.toggle("is-live", entrada.isIntersecting);
+      });
+    }, { rootMargin: "48px 0px", threshold: 0.15 });
+  }
+  observadorArte.disconnect();
+  tarjetas.forEach((tarjeta) => observadorArte.observe(tarjeta));
+}
 
 function leerUrl() {
   const params = new URLSearchParams(location.search);
@@ -101,19 +147,25 @@ function etiquetas(producto) {
 
 function foto(producto) {
   const caja = el("div", { class: "product-media" });
-  if (producto.imagen) {
-    const img = el("img", {
-      src: producto.imagen,
-      alt: [producto.nombre, producto.marca, producto.presentacion].filter(Boolean).join(", "),
-      loading: "lazy",
-      decoding: "async"
-    });
-    img.addEventListener("error", () => {
-      img.remove();
-      caja.classList.add("is-empty");
-    });
-    caja.append(img);
-  } else caja.classList.add("is-empty");
+  const arte = el("div", { class: "product-art" });
+  const reserva = ilustracionDe(producto.categoria);
+  const propia = String(producto.imagen || "").trim();
+  const img = el("img", {
+    src: propia || reserva,
+    alt: [producto.nombre, marcaVisible(producto.marca), producto.presentacion].filter(Boolean).join(", "),
+    loading: "lazy",
+    decoding: "async"
+  });
+  img.addEventListener("error", () => {
+    if (img.getAttribute("src") !== reserva) {
+      img.setAttribute("src", reserva);
+      return;
+    }
+    arte.remove();
+    caja.classList.add("is-empty");
+  });
+  arte.append(img, el("span", { class: "product-glint", "aria-hidden": "true" }));
+  caja.append(arte);
   etiquetas(producto).forEach((tag) => caja.append(tag));
   return caja;
 }
@@ -141,6 +193,7 @@ function agregar(producto, origen) {
 
 function tarjeta(producto) {
   const media = foto(producto);
+  const marca = marcaVisible(producto.marca);
   const abrir = el("button", {
     type: "button",
     class: "product-open",
@@ -148,7 +201,7 @@ function tarjeta(producto) {
     onclick: () => abrirFicha(producto)
   },
     media,
-    producto.marca ? el("span", { class: "product-brand" }, producto.marca) : null,
+    marca ? el("span", { class: "product-brand" }, marca) : null,
     el("span", { class: "product-name" }, producto.nombre),
     producto.presentacion ? el("span", { class: "product-pres" }, producto.presentacion) : null
   );
@@ -159,7 +212,9 @@ function tarjeta(producto) {
     disabled: agotado,
     onclick: () => agregar(producto, media.querySelector("img"))
   }, agotado ? "Agotado" : "Agregar");
-  return el("article", { class: "product" }, abrir, el("div", { class: "product-buy" }, precios(producto), boton));
+  const nodo = el("article", { class: "product" }, abrir, el("div", { class: "product-buy" }, precios(producto), boton));
+  nodo.style.setProperty("--float-i", String(desfase(producto.id)));
+  return nodo;
 }
 
 function esqueleto(cantidad = 8) {
@@ -176,6 +231,7 @@ function esqueleto(cantidad = 8) {
   }
   const estadoTexto = document.querySelector("[data-catalogo-estado]");
   if (estadoTexto) estadoTexto.textContent = "Cargando productos";
+  vigilarArte();
 }
 
 function anunciar(texto) {
@@ -210,6 +266,7 @@ function pintarVacio() {
   ));
   document.querySelector("[data-pager]").hidden = true;
   anunciar("No hay productos con esos filtros");
+  vigilarArte();
 }
 
 function pintarError() {
@@ -221,6 +278,7 @@ function pintarError() {
     el("button", { type: "button", class: "btn btn-primary", onclick: () => cargarCatalogo() }, "Reintentar")
   ));
   anunciar("Error al cargar el catálogo");
+  vigilarArte();
 }
 
 function pintarProductos(lista) {
@@ -243,6 +301,7 @@ function pintarProductos(lista) {
   pager.querySelector("[data-prev]").disabled = estado.pagina <= 1;
   pager.querySelector("[data-next]").disabled = estado.pagina >= paginas;
   anunciar(`${lista.length} productos en el catálogo`);
+  vigilarArte();
 }
 
 async function cargarCatalogo() {
@@ -289,14 +348,17 @@ async function cargarOfertas() {
     .limit(12);
   if (error) {
     contenedor.replaceChildren(el("p", { class: "hint" }, "No pudimos cargar las ofertas."));
+    vigilarArte();
     return;
   }
   const ofertas = (data || []).filter((producto) => descuento(producto.precio, producto.precio_anterior) > 0);
   if (!ofertas.length) {
     contenedor.replaceChildren(el("p", { class: "hint" }, "Pronto verás ofertas en productos que no requieren fórmula."));
+    vigilarArte();
     return;
   }
   contenedor.replaceChildren(...ofertas.map(tarjeta));
+  vigilarArte();
 }
 
 function asegurarFicha() {
@@ -384,10 +446,11 @@ async function abrirFicha(producto) {
   const formula = esFormula(producto.requiere_formula);
   const agotado = Number(producto.stock) <= 0;
   const media = foto(producto);
+  const marca = marcaVisible(producto.marca);
   const descripcion = el("p", { class: "sheet-copy", "data-desc": "true" }, "Cargando la descripción…");
   cuerpo.replaceChildren(
     media,
-    producto.marca ? el("p", { class: "product-brand" }, producto.marca) : null,
+    marca ? el("p", { class: "product-brand" }, marca) : null,
     producto.presentacion ? el("p", { class: "product-pres" }, producto.presentacion) : null,
     precios(producto),
     el("p", { class: "stock-note" }, agotado ? "Agotado" : `Disponibles: ${Number(producto.stock)}`),

@@ -1,7 +1,7 @@
 import { negocio, categorias, AVISO_CERRADO } from "./config.js";
 import { leerConfig } from "./datos.js";
 import { contarCarrito, fijarCantidad, quitarProducto, resumenCarrito } from "./cart.js";
-import { dinero } from "./format.js";
+import { dinero, marcaVisible } from "./format.js";
 import { el, fragmento } from "./dom.js";
 import { icono, marcaLogo } from "./icons.js";
 
@@ -208,9 +208,10 @@ function lineaCarrito(item) {
     img.addEventListener("error", () => img.remove());
     media.append(img);
   }
+  const meta = [marcaVisible(item.marca), item.presentacion].filter(Boolean).join(" · ");
   const info = el("div", { class: "line-info" },
     el("p", { class: "line-name" }, item.nombre),
-    el("p", { class: "line-meta" }, [item.marca, item.presentacion].filter(Boolean).join(" · ")),
+    meta ? el("p", { class: "line-meta" }, meta) : null,
     item.requiere_formula ? el("p", { class: "tag tag-rx" }, "Requiere fórmula médica") : null,
     el("p", { class: "line-price" }, dinero(item.precio * item.cantidad))
   );
@@ -442,9 +443,34 @@ function cabeceraFija() {
   window.addEventListener("scroll", aplicar, { passive: true });
 }
 
+function pintarBeta() {
+  if (negocio.beta !== true) return;
+  const logo = document.querySelector(".header .logo");
+  const place = logo?.querySelector(".logo-place");
+  if (logo && place && !logo.querySelector(".beta-badge")) {
+    const fila = el("span", { class: "logo-sub" });
+    const aviso = el("span", {
+      class: "beta-tip",
+      id: "beta-aviso",
+      role: "tooltip"
+    }, "Versión de prueba: los productos, precios e imágenes son de ejemplo");
+    place.replaceWith(fila);
+    fila.append(place, el("span", { class: "beta-badge" }, "BETA", aviso));
+    logo.setAttribute("aria-describedby", "beta-aviso");
+  }
+  const footer = document.querySelector(".footer");
+  if (footer && !footer.querySelector(".footer-beta")) {
+    const linea = el("p", { class: "footer-beta container" }, "Versión beta. Los productos y precios son de ejemplo.");
+    const base = footer.querySelector(".footer-base");
+    if (base) footer.insertBefore(linea, base);
+    else footer.append(linea);
+  }
+}
+
 export function iniciarLayout() {
   medirHeader();
   llenarNegocio();
+  pintarBeta();
   esquema();
   revelar();
   llenarBarrios();
