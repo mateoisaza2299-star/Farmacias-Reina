@@ -14,14 +14,6 @@ function metas(titulo, descripcion) {
   document.title = titulo;
   const meta = document.querySelector("meta[name='description']");
   if (meta) meta.content = descripcion;
-  const redes = document.querySelector("meta[property='og:title']");
-  if (redes) redes.content = titulo;
-  const copia = document.querySelector("meta[property='og:description']");
-  if (copia) copia.content = descripcion;
-  const twitter = document.querySelector("meta[name='twitter:title']");
-  if (twitter) twitter.content = titulo;
-  const twitterCopia = document.querySelector("meta[name='twitter:description']");
-  if (twitterCopia) twitterCopia.content = descripcion;
   const url = location.href.split("#")[0];
   const canon = document.querySelector("link[rel='canonical']");
   if (canon) canon.href = url;

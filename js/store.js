@@ -628,10 +628,6 @@ function pintarEncabezadoCategoria() {
     : "Categoría de Droguerías Reina.";
   const meta = document.querySelector("meta[name='description']");
   if (meta) meta.content = descripcion;
-  const ogt = document.querySelector("meta[property='og:title']");
-  if (ogt) ogt.content = document.title;
-  const ogd = document.querySelector("meta[property='og:description']");
-  if (ogd) ogd.content = descripcion;
 }
 
 async function limitesPrecio() {

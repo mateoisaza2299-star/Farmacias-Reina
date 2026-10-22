@@ -141,7 +141,7 @@ function esquema() {
     name: negocio.nombre,
     url: negocio.sitio,
     logo: `${negocio.sitio}assets/logo/logo-512.png`,
-    image: `${negocio.sitio}assets/og.jpg`,
+    image: `${negocio.sitio}assets/og/og-droguerias-reina-v2.jpg`,
     telephone: negocio.telefonoE164,
     address: {
       "@type": "PostalAddress",
@@ -177,7 +177,7 @@ function esquema() {
   const og = document.querySelector("meta[property='og:url']");
   if (og) og.content = pagina;
   const imagen = document.querySelector("meta[property='og:image']");
-  if (imagen) imagen.content = `${negocio.sitio}assets/og.jpg`;
+  if (imagen) imagen.content = `${negocio.sitio}assets/og/og-droguerias-reina-v2.jpg`;
 }
 
 function llenarBarrios() {
