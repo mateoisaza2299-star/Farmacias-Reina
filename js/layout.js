@@ -1,11 +1,14 @@
 import { negocio, categorias, AVISO_CERRADO } from "./config.js";
 import { leerConfig } from "./datos.js";
-import { contarCarrito, fijarCantidad, quitarProducto, resumenCarrito } from "./cart.js";
+import { contarCarrito, fijarCantidad, quitarProducto, resumenCarrito, vaciarCarrito } from "./cart.js";
 import { dinero, estadoHorario, marcaVisible } from "./format.js";
 import { enlaceWhatsapp, numeroWhatsapp } from "./pago.js";
 import { el } from "./dom.js";
 import { icono } from "./icons.js";
 import { animarDinero, lineaEsqueleto, marcarEsqueleto, prepararImagen } from "./motion.js";
+import { iniciarBusqueda } from "./buscar.js";
+import { supabase } from "./supabase.js";
+import { COLUMNAS, estadoVacio, tarjetaCorta } from "./ui-producto.js";
 
 let configActual = { domicilio: 0, pedido_minimo: 0, abierto: true };
 let soltarFoco = null;
@@ -242,6 +245,63 @@ function lineaCarrito(item) {
   );
 }
 
+let complementoSeq = 0;
+
+async function complementosDe(items) {
+  const ids = new Set(items.map((item) => String(item.id)));
+  let grupos = [...new Set(items.map((item) => item.categoria).filter(Boolean))];
+  if (!grupos.length) {
+    const { data } = await supabase.from("productos").select("categoria").in("id", [...ids]);
+    grupos = [...new Set((data || []).map((row) => row.categoria).filter(Boolean))];
+  }
+  if (!grupos.length) return [];
+  const { data, error } = await supabase
+    .from("productos")
+    .select(COLUMNAS)
+    .eq("activo", true)
+    .eq("requiere_formula", false)
+    .gt("stock", 0)
+    .in("categoria", grupos)
+    .limit(12);
+  if (error || !data) return [];
+  return data.filter((producto) => !ids.has(String(producto.id))).slice(0, 3);
+}
+
+async function cargarComplementos(cuerpo, items) {
+  const id = ++complementoSeq;
+  const bloque = el("section", { class: "complements" }, el("h3", {}, "Completa tu pedido"));
+  cuerpo.append(bloque);
+  const lista = await complementosDe(items);
+  if (id !== complementoSeq || !bloque.isConnected) return;
+  if (!lista.length) {
+    bloque.remove();
+    return;
+  }
+  bloque.append(...lista.map(tarjetaCorta));
+}
+
+export function pintarProgreso(raiz, resumen) {
+  if (!raiz) return;
+  const barra = raiz.querySelector("[data-progreso]");
+  if (!barra) return;
+  const activo = resumen.items.length > 0 && resumen.minimo > 0;
+  barra.hidden = !activo;
+  const n = activo ? Math.max(0, Math.min(1, resumen.subtotal / resumen.minimo)) : 0;
+  barra.querySelector("[data-progreso-barra]")?.style.setProperty("--n", String(n));
+  const texto = barra.querySelector("[data-progreso-texto]");
+  if (texto) texto.textContent = !activo ? "" : resumen.falta > 0 ? `Te faltan ${dinero(resumen.falta)}` : "Alcanzaste el pedido mínimo";
+}
+
+function solicitarVaciado(raiz) {
+  if (raiz.querySelector("[data-confirma-vaciar]")) return;
+  const caja = el("div", { class: "confirma", "data-confirma-vaciar": "true" },
+    el("p", {}, "¿Vaciar el carrito?"),
+    el("button", { type: "button", class: "btn btn-primary", onclick: () => vaciarCarrito() }, "Vaciar"),
+    el("button", { type: "button", class: "btn btn-ghost", onclick: () => caja.remove() }, "Cancelar")
+  );
+  raiz.querySelector(".drawer-foot")?.append(caja);
+}
+
 export function pintarDrawer() {
   const cuerpo = document.querySelector("[data-cart-body]");
   if (!cuerpo) return;
@@ -261,12 +321,11 @@ export function pintarDrawer() {
   const resumen = resumenCarrito(configActual.domicilio, configActual.pedido_minimo);
   cuerpo.replaceChildren();
   if (!resumen.items.length) {
-    cuerpo.append(el("div", { class: "empty-mini" },
-      icono("bag"),
-      el("p", {}, "Tu carrito está vacío."),
-      el("a", { class: "btn btn-ghost", href: "index.html#catalogo" }, "Ver catálogo")
-    ));
-  } else cuerpo.append(...resumen.items.map(lineaCarrito));
+    cuerpo.append(estadoVacio("bag", "Tu carrito está vacío", "Elige productos del catálogo para armar tu pedido.", el("a", { class: "btn btn-primary", href: "index.html#catalogo" }, "Ver catálogo")));
+  } else {
+    cuerpo.append(...resumen.items.map(lineaCarrito));
+    cargarComplementos(cuerpo, resumen.items);
+  }
   const raiz = document.getElementById("carrito");
   const subtotal = raiz.querySelector("[data-subtotal]");
   const domicilio = raiz.querySelector("[data-domicilio]");
@@ -276,11 +335,11 @@ export function pintarDrawer() {
   animarDinero(subtotal, resumen.subtotal);
   animarDinero(domicilio, resumen.domicilio);
   animarDinero(total, resumen.total);
-  if (minimo) {
-    const corto = resumen.items.length > 0 && resumen.falta > 0;
-    minimo.hidden = !corto;
-    minimo.textContent = corto ? `El pedido mínimo es ${dinero(resumen.minimo)}. Te faltan ${dinero(resumen.falta)}.` : "";
-  }
+  pintarProgreso(raiz, resumen);
+  if (minimo) minimo.hidden = true;
+  const vaciar = raiz.querySelector("[data-vaciar]");
+  if (vaciar) vaciar.hidden = !resumen.items.length;
+  if (!resumen.items.length) raiz.querySelector("[data-confirma-vaciar]")?.remove();
   if (pago) {
     const cerrado = configActual.abierto === false;
     const bloqueado = !resumen.items.length || resumen.falta > 0 || cerrado;
@@ -338,11 +397,16 @@ function asegurarDrawer() {
     ),
     el("div", { class: "drawer-body", "data-cart-body": "true" }, lineaEsqueleto(), lineaEsqueleto(), lineaEsqueleto()),
     el("div", { class: "drawer-foot" },
+      el("div", { class: "progreso", "data-progreso": "true", hidden: true },
+        el("div", { class: "progreso-pista", "aria-hidden": "true" }, el("span", { class: "progreso-barra", "data-progreso-barra": "true" })),
+        el("p", { "data-progreso-texto": "true", role: "status" })
+      ),
       el("div", { class: "sum-row" }, el("span", {}, "Subtotal estimado"), el("strong", { "data-subtotal": "true" }, dinero(0))),
       el("div", { class: "sum-row" }, el("span", {}, "Domicilio"), el("strong", { "data-domicilio": "true" }, dinero(0))),
       el("div", { class: "sum-row sum-total" }, el("span", {}, "Total estimado"), el("strong", { "data-total": "true" }, dinero(0))),
       el("p", { class: "hint", "data-minimo": "true", hidden: true }),
       el("p", { class: "fine" }, "El total definitivo lo calcula la droguería al confirmar el pedido."),
+      el("button", { type: "button", class: "btn btn-ghost", "data-vaciar": "true", hidden: true }, "Vaciar carrito"),
       el("a", { class: "btn btn-primary", href: "pagar.html", "data-checkout": "true" }, "Continuar al pago")
     )
   );
@@ -354,6 +418,7 @@ function asegurarDrawer() {
   pago.addEventListener("click", (evento) => {
     if (pago.getAttribute("aria-disabled") === "true") evento.preventDefault();
   });
+  drawer.querySelector("[data-vaciar]")?.addEventListener("click", () => solicitarVaciado(drawer));
   document.body.append(overlay, drawer);
   const cuerpo = drawer.querySelector("[data-cart-body]");
   marcarEsqueleto(cuerpo);
@@ -410,32 +475,27 @@ function mostrarCierre(abierto) {
   if (visible) document.documentElement.style.setProperty("--cerrado-h", `${banner.offsetHeight}px`);
 }
 
-function busqueda() {
-  const params = new URLSearchParams(location.search);
-  const inicial = params.get("q") || "";
-  document.querySelectorAll("[data-search-input]").forEach((input) => {
-    if (inicial) input.value = inicial;
-    input.addEventListener("input", () => {
-      document.querySelectorAll("[data-search-input]").forEach((otro) => {
-        if (otro !== input) otro.value = input.value;
-      });
-      if (document.body.dataset.page === "inicio") {
-        document.dispatchEvent(new CustomEvent("reina:escribir", { detail: input.value }));
-      }
-    });
-  });
-  document.querySelectorAll("[data-search-form]").forEach((form) => {
-    form.addEventListener("submit", (evento) => {
-      evento.preventDefault();
-      const input = form.querySelector("[data-search-input]");
-      const q = input ? input.value.trim() : "";
-      if (document.body.dataset.page === "inicio") {
-        document.dispatchEvent(new CustomEvent("reina:buscar", { detail: q }));
-        return;
-      }
-      location.href = `index.html?q=${encodeURIComponent(q)}#catalogo`;
-    });
-  });
+function accesosCuenta() {
+  const cart = document.querySelector(".header .cart-button");
+  if (cart && !document.querySelector("[data-favoritos-nav]")) {
+    const caja = el("div", { class: "nav-acciones" });
+    const fav = el("a", {
+      class: "fav-nav",
+      href: "favoritos.html",
+      "data-favoritos-nav": "true",
+      "aria-label": "Favoritos"
+    }, icono("heart"));
+    if (document.body.dataset.page === "favoritos") fav.setAttribute("aria-current", "page");
+    cart.replaceWith(caja);
+    caja.append(fav, cart);
+  }
+  const info = [...document.querySelectorAll(".footer-grid section")].find((seccion) => seccion.querySelector("h2")?.textContent === "Información");
+  if (info && !info.querySelector("a[href='favoritos.html']")) {
+    const enlace = el("a", { href: "favoritos.html" }, "Favoritos");
+    const seguir = [...info.querySelectorAll("a")].find((nodo) => nodo.getAttribute("href") === "seguimiento.html");
+    if (seguir) seguir.before(enlace);
+    else info.append(enlace);
+  }
 }
 
 function navegacion() {
@@ -564,11 +624,18 @@ export function iniciarLayout() {
   llenarBarrios();
   asegurarDrawer();
   pintarDrawer();
-  busqueda();
+  accesosCuenta();
+  iniciarBusqueda();
   navegacion();
   cabeceraFija();
   setInterval(pintarHorario, 60000);
   document.addEventListener("reina:carrito", pintarDrawer);
+  document.addEventListener("reina:aviso", (evento) => avisar(evento.detail));
+  document.addEventListener("reina:agregado", (evento) => {
+    const detalle = evento.detail || {};
+    volarAlCarrito(detalle.imagen);
+    avisar(`Agregaste ${detalle.producto?.nombre || "el producto"}`);
+  });
   leerConfig().then((cfg) => {
     configActual = cfg;
     mostrarCierre(cfg.abierto);

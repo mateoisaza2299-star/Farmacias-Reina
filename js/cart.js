@@ -24,6 +24,7 @@ function normalizar(item) {
     stock,
     requiere_formula: bandera(item.requiere_formula),
     imagen: imagenLigera(item.imagen),
+    categoria: String(item.categoria || ""),
     cantidad
   };
 }
@@ -155,6 +156,7 @@ export function sincronizarCarrito(productos) {
       stock,
       requiere_formula: producto.requiere_formula,
       imagen: producto.imagen,
+      categoria: producto.categoria || item.categoria,
       cantidad: Math.min(item.cantidad, stock)
     });
   }).filter((item) => item.cantidad > 0 && item.stock !== 0 && !item.requiere_formula);

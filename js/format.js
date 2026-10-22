@@ -35,6 +35,58 @@ export function sanearBusqueda(texto) {
     .slice(0, 50);
 }
 
+export function plano(texto) {
+  return String(texto || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function patronIlike(texto) {
+  const base = plano(sanearBusqueda(texto)).replace(/[%_\\,().]/g, "");
+  if (base.length < 3) return base;
+  return base.replace(/[aeiou]/g, "_");
+}
+
+export function claveCatalogo(nombre, presentacion) {
+  return `${plano(nombre)}|${plano(presentacion)}`;
+}
+
+export function tramos(texto, consulta) {
+  const original = String(texto || "");
+  const chars = Array.from(original);
+  const aguja = plano(sanearBusqueda(consulta)).replace(/[%_]/g, "");
+  if (!aguja) return [{ texto: original, marca: false }];
+  const mapa = [];
+  let planoTexto = "";
+  chars.forEach((char, indice) => {
+    const base = char.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    for (const pieza of base) {
+      planoTexto += pieza;
+      mapa.push(indice);
+    }
+  });
+  const cortes = [];
+  let cursor = 0;
+  let desde = planoTexto.indexOf(aguja);
+  while (desde >= 0 && mapa[desde] != null && mapa[desde + aguja.length - 1] != null) {
+    const inicio = mapa[desde];
+    const fin = mapa[desde + aguja.length - 1] + 1;
+    if (fin <= cursor) {
+      desde = planoTexto.indexOf(aguja, desde + 1);
+      continue;
+    }
+    if (inicio > cursor) cortes.push({ texto: chars.slice(cursor, inicio).join(""), marca: false });
+    cortes.push({ texto: chars.slice(Math.max(inicio, cursor), fin).join(""), marca: true });
+    cursor = fin;
+    desde = planoTexto.indexOf(aguja, desde + aguja.length);
+  }
+  if (cursor < chars.length) cortes.push({ texto: chars.slice(cursor).join(""), marca: false });
+  return cortes.length ? cortes : [{ texto: original, marca: false }];
+}
+
 export function celularValido(texto) {
   return /^3\d{9}$/.test(String(texto || "").replace(/\D/g, ""));
 }

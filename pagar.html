@@ -62,7 +62,14 @@
   <main id="contenido" class="container page">
     <h1>Confirmar pedido</h1>
     <p class="hero-lead">Revisa el estimado y déjanos los datos de entrega. El total final lo calcula la droguería.</p>
+    <ol class="pasos-pedido" data-pasos>
+      <li data-paso="carrito"><a href="#carrito">Carrito</a></li>
+      <li data-paso="datos">Datos</li>
+      <li data-paso="confirmacion">Confirmación</li>
+    </ol>
+    <p class="hint" data-entrega hidden></p>
     <div class="empty-state" data-vacio hidden>
+      <div class="vacio-arte" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 7h14l-1.5 11H6.5zM9 7V5.8a3 3 0 0 1 6 0V7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       <h2>Tu carrito está vacío</h2>
       <p>Elige productos del catálogo para continuar.</p>
       <a class="btn btn-primary" href="index.html#catalogo">Volver al catálogo</a>
@@ -155,6 +162,10 @@
             <span>Acepto la <a href="privacidad.html">política de tratamiento de datos personales</a>.</span>
           </label>
           <p class="field-error" id="politica-error" hidden></p>
+          <label class="check">
+            <input name="guardar" type="checkbox">
+            <span>Guardar mis datos en este dispositivo</span>
+          </label>
           <button class="btn btn-primary" type="submit" data-enviar>Confirmar pedido</button>
         </div>
       </form>
@@ -162,6 +173,10 @@
         <h2>Resumen</h2>
         <p class="tag tag-rx" data-rx-resumen hidden>Incluye productos con fórmula médica</p>
         <ul data-resumen-items></ul>
+        <div class="progreso" data-progreso hidden>
+          <div class="progreso-pista" aria-hidden="true"><span class="progreso-barra" data-progreso-barra></span></div>
+          <p data-progreso-texto role="status"></p>
+        </div>
         <div class="sum-row"><span>Subtotal estimado</span><strong data-subtotal>$ 0</strong></div>
         <div class="sum-row"><span>Domicilio</span><strong data-domicilio>$ 0</strong></div>
         <div class="sum-row sum-total"><span>Total estimado</span><strong data-total>$ 0</strong></div>
@@ -174,6 +189,7 @@
     <section class="checkout-success" data-exito hidden>
       <h2 data-exito-numero>Pedido recibido</h2>
       <div class="summary" data-exito-resumen></div>
+      <div data-exito-pasos></div>
       <div data-exito-pago hidden></div>
       <a class="btn btn-whatsapp" data-exito-wa target="_blank" rel="noopener noreferrer">Enviar pedido por WhatsApp</a>
       <a class="btn btn-ghost" data-exito-seguir href="seguimiento.html">Ver seguimiento</a>

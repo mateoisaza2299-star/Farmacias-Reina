@@ -2,14 +2,14 @@ import { supabase } from "./supabase.js";
 import { categorias } from "./config.js";
 import { el } from "./dom.js";
 import { icono } from "./icons.js";
-import { descuento, dinero, esFormula, marcaVisible, sanearBusqueda } from "./format.js";
+import { descuento, dinero, patronIlike, sanearBusqueda } from "./format.js";
 import { enlaceWhatsapp } from "./pago.js";
-import { agregarProducto, sincronizarCarrito } from "./cart.js";
-import { avisar, cerrarCarrito, volarAlCarrito } from "./layout.js";
-import { atenuar, cruzar, desdeEsqueleto, entrar, estadoFallo, marcarEsqueleto, ocupar, prepararImagen, tarjetaEsqueleto, transicionTexto } from "./motion.js";
+import { sincronizarCarrito } from "./cart.js";
+import { avisar } from "./layout.js";
+import { atenuar, cruzar, desdeEsqueleto, entrar, estadoFallo, marcarEsqueleto, ocupar, tarjetaEsqueleto, transicionTexto } from "./motion.js";
+import { COLUMNAS, estadoVacio, tarjeta } from "./ui-producto.js";
 
 const POR_PAGINA = 24;
-const COLUMNAS = "id,nombre,marca,presentacion,categoria,precio,precio_anterior,stock,requiere_formula,activo,imagen";
 const ORDENES = new Set(["nombre.asc", "nombre.desc", "precio.asc", "precio.desc"]);
 
 const estado = {
@@ -17,37 +17,37 @@ const estado = {
   orden: "nombre.asc",
   q: "",
   pagina: 1,
-  total: 0
-};
-
-const ILUSTRACIONES = {
-  Medicamentos: "assets/productos/medicamentos.svg",
-  "Cuidado personal": "assets/productos/cuidado.svg",
-  "Bebé": "assets/productos/bebe.svg",
-  "Belleza y dermocosmética": "assets/productos/belleza.svg",
-  "Vitaminas y suplementos": "assets/productos/vitaminas.svg",
-  "Botiquín": "assets/productos/botiquin.svg",
-  "Adulto mayor": "assets/productos/adulto.svg",
-  "Hogar y aseo": "assets/productos/hogar.svg"
+  total: 0,
+  min: null,
+  max: null,
+  ofertas: false,
+  disponibles: false,
+  sinformula: false,
+  piso: 0,
+  techo: 0
 };
 
 let secuencia = 0;
-let fichaAbierta = null;
-let soltarFicha = null;
+let silencio = false;
 
-function ilustracionDe(categoria) {
-  return ILUSTRACIONES[categoria] || ILUSTRACIONES.Medicamentos;
+function paginaCategoria() {
+  return document.body.dataset.page === "categoria";
 }
 
 function leerUrl() {
   const params = new URLSearchParams(location.search);
-  const categoria = params.get("categoria") || "";
-  estado.categoria = categorias.some((item) => item.id === categoria) ? categoria : "";
+  const cruda = paginaCategoria() ? params.get("c") || "" : params.get("categoria") || "";
+  estado.categoria = categorias.some((item) => item.id === cruda) ? cruda : "";
   const orden = params.get("orden") || "nombre.asc";
   estado.orden = ORDENES.has(orden) ? orden : "nombre.asc";
   estado.q = params.get("q") || "";
   const pagina = Number(params.get("pagina"));
   estado.pagina = Number.isInteger(pagina) && pagina > 0 ? pagina : 1;
+  estado.ofertas = params.get("ofertas") === "1";
+  estado.disponibles = params.get("disponibles") === "1";
+  estado.sinformula = params.get("sinformula") === "1";
+  estado.min = params.has("min") && Number.isFinite(Number(params.get("min"))) ? Number(params.get("min")) : null;
+  estado.max = params.has("max") && Number.isFinite(Number(params.get("max"))) ? Number(params.get("max")) : null;
   const ordenSelect = document.querySelector("[data-sort]");
   if (ordenSelect) ordenSelect.value = estado.orden;
   document.querySelectorAll("[data-search-input]").forEach((input) => {
@@ -55,17 +55,26 @@ function leerUrl() {
   });
 }
 
-function escribirUrl() {
+function escribirUrl(modo = "replace") {
+  if (silencio) return;
   const url = new URL(location.href);
+  ["q", "categoria", "c", "orden", "pagina", "ofertas", "disponibles", "sinformula", "min", "max"].forEach((clave) => {
+    url.searchParams.delete(clave);
+  });
   if (estado.q) url.searchParams.set("q", estado.q);
-  else url.searchParams.delete("q");
-  if (estado.categoria) url.searchParams.set("categoria", estado.categoria);
-  else url.searchParams.delete("categoria");
+  if (estado.categoria) url.searchParams.set(paginaCategoria() ? "c" : "categoria", estado.categoria);
   if (estado.orden !== "nombre.asc") url.searchParams.set("orden", estado.orden);
-  else url.searchParams.delete("orden");
   if (estado.pagina > 1) url.searchParams.set("pagina", String(estado.pagina));
-  else url.searchParams.delete("pagina");
-  history.replaceState(null, "", `${url.pathname}${url.search}${url.hash === "#carrito" ? "" : url.hash}`);
+  if (estado.ofertas) url.searchParams.set("ofertas", "1");
+  if (estado.disponibles) url.searchParams.set("disponibles", "1");
+  if (estado.sinformula) url.searchParams.set("sinformula", "1");
+  if (estado.min != null) url.searchParams.set("min", String(estado.min));
+  if (estado.max != null) url.searchParams.set("max", String(estado.max));
+  const destino = `${url.pathname}${url.search}`;
+  const actual = `${location.pathname}${location.search}`;
+  if (destino === actual) return;
+  if (modo === "push") history.pushState({ reina: 1 }, "", destino);
+  else history.replaceState({ reina: 1 }, "", destino);
 }
 
 function marcarCategorias() {
@@ -89,135 +98,13 @@ async function pintarCategorias() {
   }, el("span", { class: "chip-icon" }, icono("grid")), el("span", {}, "Todas"));
   const chips = categorias.map((categoria) => el("a", {
     class: "chip",
-    href: `index.html?categoria=${encodeURIComponent(categoria.id)}#catalogo`,
+    href: `categoria.html?c=${encodeURIComponent(categoria.id)}`,
     "data-categoria": categoria.id
   }, el("span", { class: "chip-icon" }, icono(categoria.icono)), el("span", {}, categoria.nombre)));
   lista.replaceChildren(todas, ...chips);
   lista.setAttribute("aria-busy", "false");
   entrar(lista.querySelectorAll(".chip"), 8);
-  lista.addEventListener("click", (evento) => {
-    const chip = evento.target.closest("[data-categoria]");
-    if (!chip) return;
-    evento.preventDefault();
-    estado.categoria = chip.dataset.categoria || "";
-    estado.pagina = 1;
-    marcarCategorias();
-    escribirUrl();
-    cargarCatalogo({ modo: "filtro" });
-    document.getElementById("catalogo")?.scrollIntoView({ block: "start", behavior: "auto" });
-  });
   marcarCategorias();
-}
-
-function etiquetas(producto) {
-  const formula = esFormula(producto.requiere_formula);
-  const oferta = !formula && descuento(producto.precio, producto.precio_anterior) > 0;
-  const agotado = Number(producto.stock) <= 0;
-  return [
-    oferta ? el("span", { class: "tag tag-offer" }, "Oferta") : null,
-    agotado ? el("span", { class: "tag tag-out" }, "Agotado") : null,
-    formula ? el("span", { class: "tag tag-rx" }, "Requiere fórmula médica") : null
-  ].filter(Boolean);
-}
-
-function foto(producto) {
-  const caja = el("div", { class: "product-media" });
-  const arte = el("div", { class: "product-art" });
-  const reserva = ilustracionDe(producto.categoria);
-  const propia = String(producto.imagen || "").trim();
-  const img = prepararImagen(el("img", {
-    src: propia || reserva,
-    alt: [producto.nombre, marcaVisible(producto.marca), producto.presentacion].filter(Boolean).join(", "),
-    width: "480",
-    height: "480"
-  }));
-  img.addEventListener("error", () => {
-    if (!img.dataset.reserva && img.getAttribute("src") !== reserva) {
-      img.dataset.reserva = "1";
-      img.setAttribute("src", reserva);
-      return;
-    }
-    arte.remove();
-    if (!caja.querySelector(".chip-icon")) {
-      const item = categorias.find((cat) => cat.id === producto.categoria);
-      caja.append(el("span", { class: "chip-icon" }, icono(item ? item.icono : "pill")));
-      caja.classList.add("is-icon");
-    }
-  });
-  arte.append(img);
-  caja.append(arte);
-  etiquetas(producto).forEach((tag) => caja.append(tag));
-  return caja;
-}
-
-function precios(producto) {
-  const formula = esFormula(producto.requiere_formula);
-  const off = formula ? 0 : descuento(producto.precio, producto.precio_anterior);
-  if (!off) return el("p", { class: "product-price" }, el("strong", {}, dinero(producto.precio)));
-  return el("p", { class: "product-price" },
-    el("s", {}, dinero(producto.precio_anterior)),
-    el("strong", {}, dinero(producto.precio)),
-    el("span", { class: "off" }, `-${off}%`)
-  );
-}
-
-function agregar(producto, origen) {
-  const resultado = agregarProducto(producto);
-  if (!resultado.ok) {
-    avisar(resultado.mensaje || "No pudimos agregar el producto.");
-    return false;
-  }
-  volarAlCarrito(origen);
-  avisar(`Agregaste ${producto.nombre}`);
-  return true;
-}
-
-function accionProducto(producto, imagen) {
-  const formula = esFormula(producto.requiere_formula);
-  const agotado = Number(producto.stock) <= 0;
-  if (formula) {
-    const presentacion = producto.presentacion ? ` (${producto.presentacion})` : "";
-    const texto = `Hola, quiero consultar por ${producto.nombre}${presentacion}. Tengo la fórmula médica.`;
-    const boton = el("button", {
-      type: "button",
-      class: "btn btn-consult",
-      "aria-label": `Consultar ${producto.nombre}`
-    }, "Consultar");
-    boton.addEventListener("click", () => {
-      const url = enlaceWhatsapp(texto);
-      if (url) window.open(url, "_blank", "noopener");
-    });
-    return boton;
-  }
-  const boton = el("button", {
-    type: "button",
-    class: "btn btn-add",
-    disabled: agotado
-  }, el("span", { class: "btn-label" }, agotado ? "Agotado" : "Agregar"));
-  boton.addEventListener("click", () => {
-    if (!agregar(producto, imagen)) return;
-    boton.classList.add("is-done");
-    setTimeout(() => boton.classList.remove("is-done"), 600);
-  });
-  return boton;
-}
-
-function tarjeta(producto) {
-  const media = foto(producto);
-  const marca = marcaVisible(producto.marca);
-  const abrir = el("button", {
-    type: "button",
-    class: "product-open",
-    "aria-label": `Ver ${producto.nombre}`,
-    onclick: () => abrirFicha(producto)
-  },
-    media,
-    marca ? el("span", { class: "product-brand" }, marca) : null,
-    el("span", { class: "product-name" }, producto.nombre),
-    producto.presentacion ? el("span", { class: "product-pres" }, producto.presentacion) : null
-  );
-  const boton = accionProducto(producto, media.querySelector("img"));
-  return el("article", { class: "product" }, abrir, el("div", { class: "product-buy" }, precios(producto), boton));
 }
 
 function esqueleto(cantidad = 12) {
@@ -236,36 +123,125 @@ function anunciar(texto) {
   if (nodo) nodo.textContent = texto;
 }
 
+function limpiarTodo() {
+  estado.q = "";
+  estado.ofertas = false;
+  estado.disponibles = false;
+  estado.sinformula = false;
+  estado.min = null;
+  estado.max = null;
+  estado.pagina = 1;
+  if (!paginaCategoria()) estado.categoria = "";
+  document.querySelectorAll("[data-search-input]").forEach((input) => {
+    input.value = "";
+  });
+  marcarCategorias();
+  reflejarFiltros();
+  escribirUrl("push");
+  cargarCatalogo({ modo: "filtro" });
+}
+
+function quitarFiltro(clave) {
+  if (clave === "q") {
+    estado.q = "";
+    document.querySelectorAll("[data-search-input]").forEach((input) => {
+      input.value = "";
+    });
+  }
+  if (clave === "categoria") estado.categoria = "";
+  if (clave === "ofertas") estado.ofertas = false;
+  if (clave === "disponibles") estado.disponibles = false;
+  if (clave === "sinformula") estado.sinformula = false;
+  if (clave === "precio") {
+    estado.min = null;
+    estado.max = null;
+  }
+  estado.pagina = 1;
+  marcarCategorias();
+  reflejarFiltros();
+  escribirUrl("push");
+  cargarCatalogo({ modo: "filtro" });
+}
+
+function filtrosActivos() {
+  const lista = [];
+  if (estado.q) lista.push(["q", estado.q]);
+  if (estado.categoria && !paginaCategoria()) lista.push(["categoria", estado.categoria]);
+  if (estado.ofertas) lista.push(["ofertas", "Solo ofertas"]);
+  if (estado.disponibles) lista.push(["disponibles", "Solo disponibles"]);
+  if (estado.sinformula) lista.push(["sinformula", "Sin fórmula"]);
+  if (estado.min != null || estado.max != null) {
+    const desde = dinero(estado.min != null ? estado.min : estado.piso);
+    const hasta = dinero(estado.max != null ? estado.max : estado.techo);
+    lista.push(["precio", `${desde} – ${hasta}`]);
+  }
+  return lista;
+}
+
+function pintarChips() {
+  const caja = document.querySelector("[data-chips]");
+  if (!caja) return;
+  const activos = filtrosActivos();
+  const contador = el("span", { class: "resultado-cuenta" }, estado.total === 1 ? "1 resultado" : `${estado.total} resultados`);
+  const chips = activos.map(([clave, texto]) => {
+    const chip = el("button", {
+      type: "button",
+      class: "filtro-chip",
+      "aria-label": `Quitar filtro ${texto}`,
+      onclick: () => quitarFiltro(clave)
+    }, el("span", {}, texto), el("span", { "aria-hidden": "true" }, "×"));
+    return chip;
+  });
+  const nodos = [contador, ...chips];
+  if (activos.length) nodos.push(el("button", { type: "button", class: "text-btn", onclick: limpiarTodo }, "Limpiar todo"));
+  caja.replaceChildren(...nodos);
+  const abrir = document.querySelector("[data-abrir-filtros]");
+  if (abrir) {
+    const etiqueta = abrir.querySelector(".btn-label") || abrir;
+    etiqueta.textContent = activos.length ? `Filtros (${activos.length})` : "Filtros";
+  }
+}
+
 function pintarVacio() {
   const grid = document.querySelector("[data-grid]");
+  if (!grid) return;
   grid.setAttribute("aria-busy", "false");
   transicionTexto(document.querySelector("[data-count]"), "0 productos");
-  grid.replaceChildren(el("div", { class: "empty-state" },
-    icono("search"),
-    el("h3", {}, "No encontramos productos"),
-    el("p", {}, "Prueba con otro nombre, otra marca o quita los filtros."),
-    el("button", {
-      type: "button",
-      class: "btn btn-ghost",
-      onclick: () => {
-        estado.q = "";
-        estado.categoria = "";
-        estado.pagina = 1;
-        document.querySelectorAll("[data-search-input]").forEach((input) => {
-          input.value = "";
-        });
-        marcarCategorias();
-        escribirUrl();
-        cargarCatalogo({ modo: "filtro" });
-      }
-    }, "Limpiar filtros")
+  pintarChips();
+  const pager = document.querySelector("[data-pager]");
+  if (pager) pager.hidden = true;
+  if (sanearBusqueda(estado.q)) {
+    const texto = `Hola, busqué “${estado.q.trim()}” y no lo encontré. ¿Lo tienen disponible?`;
+    const url = enlaceWhatsapp(texto);
+    const sugeridas = categorias.slice(0, 6).map((categoria) => el("a", {
+      class: "filtro-chip",
+      href: `categoria.html?c=${encodeURIComponent(categoria.id)}`
+    }, categoria.nombre));
+    grid.replaceChildren(estadoVacio(
+      "search",
+      "No encontramos ese producto",
+      "Prueba con otra palabra o mira estas categorías.",
+      el("div", { class: "vacio-acciones" },
+        el("div", { class: "filtro-activos" }, ...sugeridas),
+        url ? el("a", { class: "btn btn-whatsapp", href: url, target: "_blank", rel: "noopener noreferrer" }, "Pedir este producto por WhatsApp") : null,
+        el("button", { type: "button", class: "btn btn-ghost", onclick: limpiarTodo }, "Limpiar todo")
+      )
+    ));
+    anunciar("No encontramos ese producto");
+    return;
+  }
+  grid.replaceChildren(estadoVacio(
+    "search",
+    "No encontramos productos",
+    "Prueba con otro nombre, otra marca o quita los filtros.",
+    el("button", { type: "button", class: "btn btn-ghost", onclick: limpiarTodo }, "Limpiar todo")
   ));
-  document.querySelector("[data-pager]").hidden = true;
   anunciar("No hay productos con esos filtros");
 }
 
 function pintarError() {
   const grid = document.querySelector("[data-grid]");
+  if (!grid) return;
   grid.setAttribute("aria-busy", "false");
   transicionTexto(document.querySelector("[data-count]"), "No pudimos cargar el catálogo. Inténtalo de nuevo.");
   const pager = document.querySelector("[data-pager]");
@@ -276,6 +252,7 @@ function pintarError() {
 
 async function pintarProductos(lista) {
   const grid = document.querySelector("[data-grid]");
+  if (!grid) return;
   grid.setAttribute("aria-busy", "false");
   if (!lista.length) {
     await cruzar(grid, []);
@@ -285,21 +262,38 @@ async function pintarProductos(lista) {
   await cruzar(grid, lista.map(tarjeta));
   const inicio = (estado.pagina - 1) * POR_PAGINA + 1;
   const fin = inicio + lista.length - 1;
-  const cuenta = document.querySelector("[data-count]");
-  transicionTexto(cuenta, estado.total ? `Mostrando ${inicio}–${fin} de ${estado.total}` : `${lista.length} productos`);
+  transicionTexto(document.querySelector("[data-count]"), estado.total ? `Mostrando ${inicio}–${fin} de ${estado.total}` : `${lista.length} productos`);
+  pintarChips();
   const paginas = Math.max(1, Math.ceil(estado.total / POR_PAGINA));
   const pager = document.querySelector("[data-pager]");
-  pager.hidden = paginas < 2;
-  const label = pager.querySelector("[data-page-label]");
-  if (label) label.textContent = `Página ${estado.pagina} de ${paginas}`;
-  pager.querySelector("[data-prev]").disabled = estado.pagina <= 1;
-  pager.querySelector("[data-next]").disabled = estado.pagina >= paginas;
+  if (pager) {
+    pager.hidden = paginas < 2;
+    const label = pager.querySelector("[data-page-label]");
+    if (label) label.textContent = `Página ${estado.pagina} de ${paginas}`;
+    const prev = pager.querySelector("[data-prev]");
+    const next = pager.querySelector("[data-next]");
+    if (prev) prev.disabled = estado.pagina <= 1;
+    if (next) next.disabled = estado.pagina >= paginas;
+  }
   anunciar(`${lista.length} productos en el catálogo`);
+}
+
+function aplicarConsulta(consulta) {
+  if (estado.categoria) consulta = consulta.eq("categoria", estado.categoria);
+  const q = patronIlike(estado.q);
+  if (q) consulta = consulta.or(`nombre.ilike.%${q}%,marca.ilike.%${q}%`);
+  if (estado.disponibles) consulta = consulta.gt("stock", 0);
+  if (estado.sinformula || estado.ofertas) consulta = consulta.eq("requiere_formula", false);
+  if (estado.ofertas) consulta = consulta.not("precio_anterior", "is", null);
+  if (estado.min != null) consulta = consulta.gte("precio", estado.min);
+  if (estado.max != null) consulta = consulta.lte("precio", estado.max);
+  return consulta;
 }
 
 async function cargarCatalogo(opciones = {}) {
   const id = ++secuencia;
   const grid = document.querySelector("[data-grid]");
+  if (!grid) return;
   const boton = opciones.boton;
   if (boton) ocupar(boton, true);
   if (opciones.modo === "filtro" || opciones.modo === "pagina") await atenuar(grid);
@@ -311,9 +305,7 @@ async function cargarCatalogo(opciones = {}) {
   const desde = (estado.pagina - 1) * POR_PAGINA;
   const hasta = desde + POR_PAGINA - 1;
   let consulta = supabase.from("productos").select(COLUMNAS, { count: "exact" }).eq("activo", true);
-  if (estado.categoria) consulta = consulta.eq("categoria", estado.categoria);
-  const q = sanearBusqueda(estado.q);
-  if (q) consulta = consulta.or(`nombre.ilike.%${q}%,marca.ilike.%${q}%`);
+  consulta = aplicarConsulta(consulta);
   const [campo, direccion] = estado.orden.split(".");
   consulta = consulta.order(campo, { ascending: direccion !== "desc" }).range(desde, hasta);
   const { data, error, count } = await consulta;
@@ -331,7 +323,7 @@ async function cargarCatalogo(opciones = {}) {
   const paginas = Math.max(1, Math.ceil(estado.total / POR_PAGINA));
   if (estado.pagina > paginas) {
     estado.pagina = paginas;
-    escribirUrl();
+    escribirUrl("replace");
     cargarCatalogo();
     return;
   }
@@ -372,126 +364,312 @@ async function cargarOfertas() {
   contenedor.setAttribute("aria-busy", "false");
 }
 
-function asegurarFicha() {
-  let overlay = document.querySelector("[data-overlay='ficha']");
-  let ficha = document.getElementById("ficha");
-  if (ficha) return { overlay, ficha };
-  overlay = el("div", { class: "overlay", "data-overlay": "ficha", hidden: true });
-  ficha = el("section", {
-    class: "sheet",
-    id: "ficha",
-    role: "dialog",
-    "aria-modal": "true",
-    "aria-labelledby": "ficha-titulo",
-    tabindex: "-1",
-    hidden: true
-  });
-  ficha.append(
-    el("div", { class: "sheet-head" },
-      el("h2", { id: "ficha-titulo" }, "Producto"),
-      el("button", { type: "button", class: "icon-btn", "data-close-ficha": "true", "aria-label": "Cerrar ficha" }, icono("close"))
-    ),
-    el("div", { class: "sheet-body", "data-ficha-body": "true" })
-  );
-  overlay.addEventListener("click", cerrarFicha);
-  ficha.addEventListener("click", (evento) => {
-    if (evento.target.closest("[data-close-ficha]")) cerrarFicha();
-  });
-  document.body.append(overlay, ficha);
-  return { overlay, ficha };
+function pasoPrecio() {
+  const rango = Math.max(0, estado.techo - estado.piso);
+  if (rango > 50000) return 1000;
+  if (rango > 10000) return 500;
+  return 100;
 }
 
-function cerrarFicha() {
-  const overlay = document.querySelector("[data-overlay='ficha']");
-  const ficha = document.getElementById("ficha");
-  if (!ficha || !ficha.classList.contains("is-open")) return;
-  overlay.classList.remove("is-open");
-  ficha.classList.remove("is-open");
-  document.documentElement.classList.remove("scroll-lock");
-  if (soltarFicha) soltarFicha();
-  soltarFicha = null;
-  const ocultar = () => {
-    if (ficha.classList.contains("is-open")) return;
-    overlay.hidden = true;
-    ficha.hidden = true;
-  };
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) ocultar();
-  else ficha.addEventListener("transitionend", ocultar, { once: true });
-  if (fichaAbierta && fichaAbierta.focus) fichaAbierta.focus();
+function reflejarRango() {
+  const minInput = document.querySelector("[data-precio-min]");
+  const maxInput = document.querySelector("[data-precio-max]");
+  const pista = document.querySelector("[data-rango]");
+  const leyenda = document.querySelector("[data-precio-leyenda]");
+  if (!minInput || !maxInput || !pista) return;
+  const activo = estado.techo > estado.piso;
+  pista.hidden = !activo;
+  if (!activo) return;
+  const paso = pasoPrecio();
+  minInput.min = String(estado.piso);
+  maxInput.min = String(estado.piso);
+  minInput.max = String(estado.techo);
+  maxInput.max = String(estado.techo);
+  minInput.step = String(paso);
+  maxInput.step = String(paso);
+  const desde = estado.min != null ? estado.min : estado.piso;
+  const hasta = estado.max != null ? estado.max : estado.techo;
+  if (document.activeElement !== minInput) minInput.value = String(desde);
+  if (document.activeElement !== maxInput) maxInput.value = String(hasta);
+  const a = Number(minInput.value);
+  const b = Number(maxInput.value);
+  const ancho = Math.max(1, estado.techo - estado.piso);
+  pista.style.setProperty("--p1", String(Math.round(((a - estado.piso) / ancho) * 100)));
+  pista.style.setProperty("--p2", String(Math.round(((b - estado.piso) / ancho) * 100)));
+  if (leyenda) leyenda.textContent = `${dinero(a)} – ${dinero(b)}`;
 }
 
-function atrapar(contenedor) {
-  const selector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-  function tecla(evento) {
-    if (evento.key === "Escape") {
-      evento.preventDefault();
-      cerrarFicha();
+function reflejarFiltros() {
+  const select = document.querySelector("[data-filtro-cat]");
+  if (select) select.value = estado.categoria;
+  const ofertas = document.querySelector("[data-filtro-ofertas]");
+  const disponibles = document.querySelector("[data-filtro-disponibles]");
+  const sinformula = document.querySelector("[data-filtro-sinformula]");
+  if (ofertas) ofertas.checked = estado.ofertas;
+  if (disponibles) disponibles.checked = estado.disponibles;
+  if (sinformula) sinformula.checked = estado.sinformula;
+  reflejarRango();
+  pintarChips();
+}
+
+function aplicarCheck(clave, marcado) {
+  estado[clave] = marcado;
+  estado.pagina = 1;
+  reflejarFiltros();
+  escribirUrl("push");
+  cargarCatalogo({ modo: "filtro" });
+}
+
+function cambiarCategoria(valor) {
+  const id = categorias.some((item) => item.id === valor) ? valor : "";
+  if (paginaCategoria()) {
+    if (!id) {
+      location.href = "index.html#catalogo";
       return;
     }
-    if (evento.key !== "Tab") return;
-    const nodos = [...contenedor.querySelectorAll(selector)].filter((nodo) => !nodo.closest("[hidden]"));
-    if (!nodos.length) return;
-    const primero = nodos[0];
-    const ultimo = nodos[nodos.length - 1];
-    if (evento.shiftKey && document.activeElement === primero) {
-      evento.preventDefault();
-      ultimo.focus();
-    } else if (!evento.shiftKey && document.activeElement === ultimo) {
-      evento.preventDefault();
-      primero.focus();
-    }
+    const url = new URL("categoria.html", location.href);
+    if (id) url.searchParams.set("c", id);
+    if (estado.q) url.searchParams.set("q", estado.q);
+    if (estado.orden !== "nombre.asc") url.searchParams.set("orden", estado.orden);
+    if (estado.ofertas) url.searchParams.set("ofertas", "1");
+    if (estado.disponibles) url.searchParams.set("disponibles", "1");
+    if (estado.sinformula) url.searchParams.set("sinformula", "1");
+    if (estado.min != null) url.searchParams.set("min", String(estado.min));
+    if (estado.max != null) url.searchParams.set("max", String(estado.max));
+    location.href = `${url.pathname}${url.search}`;
+    return;
   }
-  contenedor.addEventListener("keydown", tecla);
-  const nodos = [...contenedor.querySelectorAll(selector)];
-  (nodos.find((nodo) => nodo.hasAttribute("data-close-ficha")) || contenedor).focus();
-  return () => contenedor.removeEventListener("keydown", tecla);
+  estado.categoria = id;
+  estado.pagina = 1;
+  marcarCategorias();
+  reflejarFiltros();
+  escribirUrl("push");
+  cargarCatalogo({ modo: "filtro" });
 }
 
-async function abrirFicha(producto) {
-  cerrarCarrito();
-  const { overlay, ficha } = asegurarFicha();
-  fichaAbierta = document.activeElement;
-  const titulo = ficha.querySelector("#ficha-titulo");
-  titulo.textContent = producto.nombre;
-  const cuerpo = ficha.querySelector("[data-ficha-body]");
-  const formula = esFormula(producto.requiere_formula);
-  const agotado = Number(producto.stock) <= 0;
-  const media = foto(producto);
-  const marca = marcaVisible(producto.marca);
-  const descripcion = el("p", { class: "sheet-copy", "data-desc": "true" }, "Cargando la descripción…");
-  cuerpo.replaceChildren(
-    media,
-    marca ? el("p", { class: "product-brand" }, marca) : null,
-    producto.presentacion ? el("p", { class: "product-pres" }, producto.presentacion) : null,
-    precios(producto),
-    el("p", { class: agotado ? "stock-note" : "stock-note is-ok" }, agotado ? "Agotado" : `Disponibles: ${Number(producto.stock)}`),
-    formula ? el("p", { class: "tag tag-rx" }, "Requiere fórmula médica") : null,
-    descripcion,
-    accionProducto(producto, media.querySelector("img"))
-  );
-  overlay.hidden = false;
-  ficha.hidden = false;
+function moverRango(origen) {
+  const minInput = document.querySelector("[data-precio-min]");
+  const maxInput = document.querySelector("[data-precio-max]");
+  if (!minInput || !maxInput) return;
+  let a = Number(minInput.value);
+  let b = Number(maxInput.value);
+  if (a > b) {
+    if (origen === "min") maxInput.value = String(a);
+    else minInput.value = String(b);
+  }
+  const previoMin = estado.min;
+  const previoMax = estado.max;
+  estado.min = Number(minInput.value);
+  estado.max = Number(maxInput.value);
+  reflejarRango();
+  estado.min = previoMin;
+  estado.max = previoMax;
+}
+
+function soltarRango() {
+  const minInput = document.querySelector("[data-precio-min]");
+  const maxInput = document.querySelector("[data-precio-max]");
+  if (!minInput || !maxInput) return;
+  const a = Number(minInput.value);
+  const b = Number(maxInput.value);
+  estado.min = a <= estado.piso ? null : a;
+  estado.max = b >= estado.techo ? null : b;
+  estado.pagina = 1;
+  reflejarFiltros();
+  escribirUrl("push");
+  cargarCatalogo({ modo: "filtro" });
+}
+
+function esDesktop() {
+  return window.matchMedia("(min-width: 900px)").matches;
+}
+
+function anclarFiltros(alCuerpo) {
+  const slot = document.querySelector("[data-filtros]");
+  const hogar = document.querySelector(".catalogo-lay");
+  if (!slot) return;
+  if (alCuerpo) {
+    if (slot.parentElement !== document.body) document.body.append(slot);
+    return;
+  }
+  if (hogar && slot.parentElement !== hogar) hogar.prepend(slot);
+}
+
+function cerrarFiltros() {
+  const slot = document.querySelector("[data-filtros]");
+  const overlay = document.querySelector("[data-filtros-overlay]");
+  if (!slot) return;
+  slot.classList.remove("is-open");
+  overlay?.classList.remove("is-open");
+  const carrito = document.getElementById("carrito");
+  if (!carrito?.classList.contains("is-open")) document.documentElement.classList.remove("scroll-lock");
+  const ocultar = () => {
+    if (esDesktop() || slot.classList.contains("is-open")) return;
+    slot.hidden = true;
+    if (overlay) overlay.hidden = true;
+    anclarFiltros(false);
+  };
+  if (esDesktop() || window.matchMedia("(prefers-reduced-motion: reduce)").matches) ocultar();
+  else slot.addEventListener("transitionend", ocultar, { once: true });
+}
+
+function abrirFiltros() {
+  if (esDesktop()) return;
+  const slot = document.querySelector("[data-filtros]");
+  const overlay = document.querySelector("[data-filtros-overlay]");
+  if (!slot) return;
+  anclarFiltros(true);
+  slot.hidden = false;
+  if (overlay) overlay.hidden = false;
   document.documentElement.classList.add("scroll-lock");
   requestAnimationFrame(() => {
-    overlay.classList.add("is-open");
-    ficha.classList.add("is-open");
+    slot.classList.add("is-open");
+    overlay?.classList.add("is-open");
   });
-  soltarFicha = atrapar(ficha);
-  const { data } = await supabase.from("productos").select("descripcion").eq("id", producto.id).maybeSingle();
-  const nodo = ficha.querySelector("[data-desc]");
-  if (!nodo) return;
-  const texto = data && data.descripcion ? String(data.descripcion).trim() : "";
-  nodo.textContent = texto || "Este producto no tiene una descripción adicional.";
+  slot.querySelector("select, input, button")?.focus();
+}
+
+function sincronizarPanel() {
+  const slot = document.querySelector("[data-filtros]");
+  const overlay = document.querySelector("[data-filtros-overlay]");
+  if (!slot) return;
+  if (esDesktop()) {
+    anclarFiltros(false);
+    slot.hidden = false;
+    slot.classList.remove("is-open");
+    if (overlay) {
+      overlay.hidden = true;
+      overlay.classList.remove("is-open");
+    }
+    const carrito = document.getElementById("carrito");
+    if (!carrito?.classList.contains("is-open")) document.documentElement.classList.remove("scroll-lock");
+    return;
+  }
+  if (!slot.classList.contains("is-open")) {
+    slot.hidden = true;
+    anclarFiltros(false);
+  }
+}
+
+function montarFiltros() {
+  const slot = document.querySelector("[data-filtros]");
+  if (!slot || slot.dataset.listo === "1") return;
+  slot.dataset.listo = "1";
+  const select = el("select", { "data-filtro-cat": "true", "aria-label": "Categoría" },
+    el("option", { value: "" }, "Todas"),
+    ...categorias.map((categoria) => el("option", { value: categoria.id }, categoria.nombre))
+  );
+  select.addEventListener("change", () => cambiarCategoria(select.value));
+  const minInput = el("input", { type: "range", "data-precio-min": "true", "aria-label": "Precio mínimo" });
+  const maxInput = el("input", { type: "range", "data-precio-max": "true", "aria-label": "Precio máximo" });
+  minInput.addEventListener("input", () => moverRango("min"));
+  maxInput.addEventListener("input", () => moverRango("max"));
+  minInput.addEventListener("change", soltarRango);
+  maxInput.addEventListener("change", soltarRango);
+  const ofertas = el("input", { type: "checkbox", "data-filtro-ofertas": "true" });
+  const disponibles = el("input", { type: "checkbox", "data-filtro-disponibles": "true" });
+  const sinformula = el("input", { type: "checkbox", "data-filtro-sinformula": "true" });
+  ofertas.addEventListener("change", () => aplicarCheck("ofertas", ofertas.checked));
+  disponibles.addEventListener("change", () => aplicarCheck("disponibles", disponibles.checked));
+  sinformula.addEventListener("change", () => aplicarCheck("sinformula", sinformula.checked));
+  slot.replaceChildren(
+    el("div", { class: "filtros-head" },
+      el("h2", {}, "Filtros"),
+      el("button", { type: "button", class: "icon-btn filtros-cerrar", "aria-label": "Cerrar filtros", onclick: cerrarFiltros }, icono("close"))
+    ),
+    el("label", { class: "filtro-campo" }, "Categoría", select),
+    el("div", { class: "filtro-campo", "data-rango": "true" },
+      el("span", {}, "Precio"),
+      el("span", { class: "hint", "data-precio-leyenda": "true" }, ""),
+      el("div", { class: "rango" },
+        el("span", { class: "rango-pista", "aria-hidden": "true" }),
+        el("span", { class: "rango-lleno", "aria-hidden": "true" }),
+        minInput,
+        maxInput
+      )
+    ),
+    el("label", { class: "check" }, ofertas, el("span", {}, "Solo ofertas")),
+    el("label", { class: "check" }, disponibles, el("span", {}, "Solo disponibles")),
+    el("label", { class: "check" }, sinformula, el("span", {}, "Sin fórmula"))
+  );
+  if (!document.querySelector("[data-filtros-overlay]")) {
+    const overlay = el("div", { class: "filtros-overlay", "data-filtros-overlay": "true", hidden: true });
+    overlay.addEventListener("click", cerrarFiltros);
+    document.body.append(overlay);
+  }
+  document.querySelector("[data-abrir-filtros]")?.addEventListener("click", abrirFiltros);
+  document.addEventListener("keydown", (evento) => {
+    if (evento.key === "Escape") cerrarFiltros();
+  });
+  window.addEventListener("resize", sincronizarPanel);
+  sincronizarPanel();
+}
+
+function pintarEncabezadoCategoria() {
+  if (!paginaCategoria()) return;
+  const nombre = estado.categoria || "Categoría";
+  const titulo = document.querySelector("[data-cat-titulo]");
+  if (titulo) titulo.textContent = nombre;
+  const copia = document.querySelector("[data-cat-copy]");
+  if (copia) copia.textContent = estado.categoria
+    ? `Productos de ${nombre} en Droguerías Reina. Domicilios a Funza y Mosquera.`
+    : "No encontramos esa categoría.";
+  const migas = document.querySelector("[data-migas]");
+  if (migas) {
+    migas.replaceChildren(
+      el("a", { href: "index.html" }, "Inicio"),
+      el("span", { "aria-hidden": "true" }, "/"),
+      el("span", { "aria-current": "page" }, nombre)
+    );
+  }
+  document.title = `${nombre} | Droguerías Reina`;
+  const descripcion = estado.categoria
+    ? `Compra ${nombre} en Droguerías Reina. Domicilios a Funza y Mosquera.`
+    : "Categoría de Droguerías Reina.";
+  const meta = document.querySelector("meta[name='description']");
+  if (meta) meta.content = descripcion;
+  const ogt = document.querySelector("meta[property='og:title']");
+  if (ogt) ogt.content = document.title;
+  const ogd = document.querySelector("meta[property='og:description']");
+  if (ogd) ogd.content = descripcion;
+}
+
+async function limitesPrecio() {
+  const base = () => supabase.from("productos").select("precio").eq("activo", true);
+  const [bajo, alto] = await Promise.all([
+    base().order("precio", { ascending: true }).limit(1),
+    base().order("precio", { ascending: false }).limit(1)
+  ]);
+  const min = Number(bajo.data?.[0]?.precio);
+  const max = Number(alto.data?.[0]?.precio);
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return;
+  const paso = max - min > 50000 ? 1000 : max - min > 10000 ? 500 : 100;
+  estado.piso = Math.floor(min / paso) * paso;
+  estado.techo = Math.max(estado.piso, Math.ceil(max / paso) * paso);
+  reflejarRango();
 }
 
 export function iniciarTienda() {
   leerUrl();
+  if (paginaCategoria() && !estado.categoria) {
+    pintarEncabezadoCategoria();
+    const grid = document.querySelector("[data-grid]");
+    if (grid) {
+      grid.setAttribute("aria-busy", "false");
+      grid.replaceChildren(estadoVacio("search", "No encontramos esa categoría", "Vuelve al catálogo y elige otra.", el("a", { class: "btn btn-primary", href: "index.html#catalogo" }, "Ver catálogo")));
+    }
+    return;
+  }
+  montarFiltros();
+  reflejarFiltros();
+  pintarEncabezadoCategoria();
   pintarCategorias();
+  limitesPrecio();
   const orden = document.querySelector("[data-sort]");
   orden?.addEventListener("change", () => {
     estado.orden = ORDENES.has(orden.value) ? orden.value : "nombre.asc";
     estado.pagina = 1;
-    escribirUrl();
+    escribirUrl("push");
     cargarCatalogo({ modo: "filtro" });
   });
   const pager = document.querySelector("[data-pager]");
@@ -501,9 +679,9 @@ export function iniciarTienda() {
     const y = window.scrollY;
     if (boton.hasAttribute("data-prev")) estado.pagina -= 1;
     if (boton.hasAttribute("data-next")) estado.pagina += 1;
-    escribirUrl();
+    escribirUrl("push");
     cargarCatalogo({ modo: "pagina", boton }).finally(() => {
-      const catalogo = document.getElementById("catalogo");
+      const catalogo = document.getElementById("catalogo") || document.getElementById("contenido");
       if (!catalogo) return;
       const arriba = catalogo.getBoundingClientRect().top;
       if (arriba < 0 || arriba > window.innerHeight * 0.4) catalogo.scrollIntoView({ block: "start", behavior: "auto" });
@@ -511,26 +689,34 @@ export function iniciarTienda() {
     });
   });
   let timer = 0;
-  const aplicar = (valor, desplazar) => {
+  const aplicar = (valor, desplazar, modo) => {
     const q = String(valor || "");
     if (q === estado.q && !desplazar) return;
     estado.q = q;
     estado.pagina = 1;
-    escribirUrl();
+    escribirUrl(modo);
+    reflejarFiltros();
     cargarCatalogo({ modo: "filtro" });
     if (desplazar) document.getElementById("catalogo")?.scrollIntoView({ block: "start", behavior: "auto" });
   };
   document.addEventListener("reina:escribir", (evento) => {
     clearTimeout(timer);
-    timer = setTimeout(() => aplicar(evento.detail, false), 280);
+    timer = setTimeout(() => aplicar(evento.detail, false, "push"), 280);
   });
   document.addEventListener("reina:buscar", (evento) => {
     clearTimeout(timer);
-    aplicar(evento.detail, true);
+    aplicar(evento.detail, true, "push");
   });
-  if (location.hash === "#buscar") {
-    document.getElementById("buscar")?.focus();
-  }
+  window.addEventListener("popstate", () => {
+    silencio = true;
+    leerUrl();
+    reflejarFiltros();
+    marcarCategorias();
+    pintarEncabezadoCategoria();
+    silencio = false;
+    cargarCatalogo({ modo: "filtro" });
+  });
+  if (location.hash === "#buscar") document.getElementById("buscar")?.focus();
   cargarOfertas();
   cargarCatalogo();
 }

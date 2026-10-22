@@ -79,20 +79,42 @@ function claseRecibir(pedido, clave, indice, pasos) {
   return "";
 }
 
+function iconoPaso(clave) {
+  const mapa = {
+    recibido: "check",
+    revision: "pill",
+    pendiente_pago: "card",
+    pagado: "check",
+    despachado: "truck",
+    camino: "truck",
+    entregado: "box",
+    rechazado: "close",
+    cancelado: "close"
+  };
+  return mapa[clave] || "check";
+}
+
+function paso(clave, etiqueta, clase) {
+  return el("li", { class: clase },
+    el("span", { class: "step-ico", "aria-hidden": "true" }, icono(iconoPaso(clave))),
+    el("span", {}, etiqueta)
+  );
+}
+
 function lineaEstados(pedido) {
   const excepcional = pedido.estado === "rechazado" || pedido.estado === "cancelado";
-  const lista = el("ol", { class: `steps ${excepcional ? "is-stopped" : ""}` });
+  const lista = el("ol", { class: `steps steps-v ${excepcional ? "is-stopped" : ""}` });
   if (negocio.pagoEnLinea) {
     const actual = pasoEstado(pedido.estado);
-    PASOS.forEach(([, etiqueta], indice) => {
+    PASOS.forEach(([clave, etiqueta], indice) => {
       const clase = excepcional ? "" : indice < actual ? "is-done" : indice === actual ? "is-now" : "";
-      lista.append(el("li", { class: clase }, el("span", { class: "step-dot", "aria-hidden": "true" }), el("span", {}, etiqueta)));
+      lista.append(paso(clave, etiqueta, clase));
     });
     return lista;
   }
   const pasos = pasosRecibir(pedido);
   pasos.forEach(([clave, etiqueta], indice) => {
-    lista.append(el("li", { class: claseRecibir(pedido, clave, indice, pasos) }, el("span", { class: "step-dot", "aria-hidden": "true" }), el("span", {}, etiqueta)));
+    lista.append(paso(clave, etiqueta, claseRecibir(pedido, clave, indice, pasos)));
   });
   return lista;
 }
@@ -116,6 +138,7 @@ function tarjeta(pedido, destacado) {
   if (pedido.estado === "rechazado") articulo.append(el("p", { class: "callout callout-warn" }, "No pudimos validar la fórmula de este pedido. Escríbenos y te contamos cómo corregirlo."));
   if (pedido.estado === "cancelado") articulo.append(el("p", { class: "callout callout-warn" }, "Este pedido fue cancelado."));
   if (pedido.items?.length) {
+    articulo.append(el("h3", { class: "track-resumen" }, "Resumen del pedido"));
     articulo.append(el("ul", { class: "track-items" }, ...pedido.items.map((item) => el("li", {},
       el("span", {}, `${item.nombre}${item.presentacion ? ` · ${item.presentacion}` : ""} × ${item.cantidad}`),
       item.precio == null ? null : el("strong", {}, dinero(item.precio * item.cantidad))
@@ -144,9 +167,7 @@ function tarjeta(pedido, destacado) {
     montarPago(pago, pedido, "Pagar ahora");
   } else {
     const enlace = enlaceWhatsappPedido(pedido);
-    const etiqueta = !negocio.pagoEnLinea && (pedido.estado === "pendiente_pago" || pedido.estado === "revision")
-      ? "Enviar pedido por WhatsApp"
-      : "Escribir por WhatsApp";
+    const etiqueta = "Escribir a la droguería";
     if (enlace) articulo.append(el("a", { class: "btn btn-whatsapp", href: enlace, target: "_blank", rel: "noopener noreferrer" }, etiqueta));
   }
   return articulo;
@@ -163,12 +184,14 @@ function exitoPago(pedido) {
 
 function vacio(mensaje) {
   return el("div", { class: "empty-state" },
-    icono("box"),
+    el("div", { class: "vacio-arte", "aria-hidden": "true" }, icono("box")),
     el("h2", {}, "Seguimiento"),
     el("p", {}, mensaje),
     el("a", { class: "btn btn-primary", href: "index.html" }, "Volver a la tienda")
   );
 }
+
+const estadosPrevios = new Map();
 
 async function consultar(token) {
   const { data, error } = await supabase.rpc("estado_pedido", { p_token: token });
@@ -234,7 +257,10 @@ async function refrescar() {
       }
       const destacado = pedido.token === principal || (!principal && !alguno);
       alguno = true;
-      raiz.append(tarjeta(pedido, destacado));
+      const nodo = tarjeta(pedido, destacado);
+      if (estadosPrevios.has(pedido.token) && estadosPrevios.get(pedido.token) !== pedido.estado) nodo.classList.add("is-cambio");
+      estadosPrevios.set(pedido.token, pedido.estado || "");
+      raiz.append(nodo);
     });
     if (!alguno && !raiz.childElementCount) raiz.append(vacio("No encontramos pedidos para mostrar."));
   } finally {

@@ -6,8 +6,9 @@ import { guardarPedidoLocal } from "./pedidos.js";
 import { enlaceWhatsapp, enlaceWhatsappPedido, mensajePedidoWhatsapp, montarPago } from "./pago.js";
 import { supabase } from "./supabase.js";
 import { el } from "./dom.js";
-import { iniciarLayout } from "./layout.js";
+import { iniciarLayout, pintarProgreso } from "./layout.js";
 import { animarDinero } from "./motion.js";
+import { guardarDatosCliente, leerDatosCliente } from "./memoria.js";
 
 const TIPOS = {
   "image/jpeg": "jpg",
@@ -75,10 +76,14 @@ function pintarResumen() {
   animarDinero(caja.querySelector("[data-subtotal]"), datos.subtotal);
   animarDinero(caja.querySelector("[data-domicilio]"), datos.domicilio);
   animarDinero(caja.querySelector("[data-total]"), datos.total);
+  pintarProgreso(caja, datos);
   const minimo = caja.querySelector("[data-minimo]");
   const corto = hay && datos.falta > 0;
-  minimo.hidden = !corto;
-  minimo.textContent = corto ? `El pedido mínimo es ${dinero(datos.minimo)}. Te faltan ${dinero(datos.falta)}.` : "";
+  if (minimo) {
+    minimo.hidden = !corto || datos.minimo > 0;
+    minimo.textContent = corto && !(datos.minimo > 0) ? `El pedido mínimo es ${dinero(datos.minimo)}. Te faltan ${dinero(datos.falta)}.` : "";
+  }
+  marcarPaso(hay ? "datos" : "carrito");
   const formula = document.querySelector("[data-formula]");
   formula.hidden = !datos.requiereFormula;
   const cerrado = configActual.abierto === false;
@@ -104,6 +109,29 @@ function campo(nombre) {
   return document.querySelector(`[name="${nombre}"]`);
 }
 
+function marcarPaso(nombre) {
+  const orden = ["carrito", "datos", "confirmacion"];
+  const actual = orden.indexOf(nombre);
+  document.querySelectorAll("[data-paso]").forEach((li) => {
+    const indice = orden.indexOf(li.dataset.paso);
+    li.classList.toggle("is-done", indice > -1 && indice < actual);
+    li.classList.toggle("is-now", indice === actual);
+    if (indice === actual) li.setAttribute("aria-current", "step");
+    else li.removeAttribute("aria-current");
+  });
+}
+
+function mensajeCampo(input, datos) {
+  if (input.name === "nombre") return input.value.trim().length >= 3 ? "" : "Escribe tu nombre completo.";
+  if (input.name === "telefono") return celularValido(input.value) ? "" : "Celular inválido. Debe tener 10 dígitos y empezar por 3.";
+  if (input.name === "direccion") return input.value.trim().length >= 5 ? "" : "Escribe la dirección de entrega.";
+  if (input.name === "barrio") return input.value.trim().length >= 2 ? "" : "Escribe el barrio de entrega.";
+  if (input.name === "politica") return input.checked ? "" : "Debes aceptar la política de tratamiento de datos.";
+  if (input.name === "formula") return datos?.requiereFormula ? validarArchivo(input.files?.[0]) : "";
+  if (input.name === "salud") return datos?.requiereFormula ? (input.checked ? "" : "Necesitamos tu autorización para tratar la fórmula como dato de salud.") : "";
+  return "";
+}
+
 function marcar(input, mensaje) {
   const ayuda = document.getElementById(`${input.name}-error`);
   input.setAttribute("aria-invalid", mensaje ? "true" : "false");
@@ -123,14 +151,14 @@ function validarFormulario(datos) {
   const politica = campo("politica");
   const salud = campo("salud");
   const archivo = campo("formula");
-  ok = marcar(nombre, nombre.value.trim().length >= 3 ? "" : "Escribe tu nombre completo.") && ok;
-  ok = marcar(telefono, celularValido(telefono.value) ? "" : "Celular inválido. Debe tener 10 dígitos y empezar por 3.") && ok;
-  ok = marcar(direccion, direccion.value.trim().length >= 5 ? "" : "Escribe la dirección de entrega.") && ok;
-  ok = marcar(barrio, barrio.value.trim().length >= 2 ? "" : "Escribe el barrio de entrega.") && ok;
-  ok = marcar(politica, politica.checked ? "" : "Debes aceptar la política de tratamiento de datos.") && ok;
+  ok = marcar(nombre, mensajeCampo(nombre, datos)) && ok;
+  ok = marcar(telefono, mensajeCampo(telefono, datos)) && ok;
+  ok = marcar(direccion, mensajeCampo(direccion, datos)) && ok;
+  ok = marcar(barrio, mensajeCampo(barrio, datos)) && ok;
+  ok = marcar(politica, mensajeCampo(politica, datos)) && ok;
   if (datos.requiereFormula) {
-    ok = marcar(archivo, validarArchivo(archivo.files[0])) && ok;
-    ok = marcar(salud, salud.checked ? "" : "Necesitamos tu autorización para tratar la fórmula como dato de salud.") && ok;
+    ok = marcar(archivo, mensajeCampo(archivo, datos)) && ok;
+    ok = marcar(salud, mensajeCampo(salud, datos)) && ok;
   } else {
     marcar(archivo, "");
     marcar(salud, "");
@@ -227,6 +255,21 @@ function mostrarExito(pedido) {
   }
   const seguir = document.querySelector("[data-exito-seguir]");
   if (seguir && pedido.token) seguir.href = `seguimiento.html?pedido=${encodeURIComponent(pedido.token)}`;
+  const pasos = document.querySelector("[data-exito-pasos]");
+  if (pasos) {
+    const entrega = String(configActual.tiempoEntrega || "").trim();
+    pasos.replaceChildren(
+      el("h2", {}, "Qué sigue"),
+      el("ol", { class: "siguientes" },
+        el("li", {}, pedido.numero ? `Tu pedido quedó como número ${pedido.numero}. Guárdalo para el seguimiento.` : "Guardamos el pedido en este dispositivo para que puedas seguirlo."),
+        el("li", {}, pedido.formula ? "El regente de farmacia revisa la fórmula antes de despachar." : "Preparamos los productos para el domicilio."),
+        el("li", {}, pedido.pagoLinea ? "Puedes completar el pago en línea o pagar al recibir." : "Pagas al recibir, en efectivo o por transferencia."),
+        entrega ? el("li", {}, `Tiempo estimado de entrega: ${entrega}.`) : null,
+        el("li", {}, "Abre el seguimiento para ver el estado. Si necesitas algo, escribe a la droguería.")
+      )
+    );
+  }
+  marcarPaso("confirmacion");
   if (exito) exito.hidden = false;
 }
 
@@ -371,6 +414,15 @@ async function enviar(evento) {
       formula: Boolean(ruta),
       formula_path: ruta
     };
+    const guardar = campo("guardar");
+    if (guardar?.checked) {
+      guardarDatosCliente({
+        nombre: campo("nombre").value.trim(),
+        telefono: campo("telefono").value.replace(/\D/g, ""),
+        direccion: campo("direccion").value.trim(),
+        barrio: campo("barrio").value.trim()
+      });
+    }
     confirmado = true;
     vaciarCarrito();
     if (enLinea && ruta) {
@@ -403,13 +455,56 @@ function escucharArchivo() {
   });
 }
 
+function mostrarEntrega(cfg) {
+  const nodo = document.querySelector("[data-entrega]");
+  if (!nodo) return;
+  const texto = String(cfg?.tiempoEntrega || "").trim();
+  nodo.hidden = !texto;
+  nodo.textContent = texto ? `Tiempo estimado de entrega: ${texto}` : "";
+}
+
+function restaurarDatos() {
+  const guardados = leerDatosCliente();
+  if (!guardados) return;
+  ["nombre", "telefono", "direccion", "barrio"].forEach((nombre) => {
+    const input = campo(nombre);
+    if (input && !input.value && guardados[nombre]) input.value = guardados[nombre];
+  });
+}
+
+function prepararValidacion() {
+  ["nombre", "telefono", "direccion", "barrio", "politica", "formula", "salud"].forEach((nombre) => {
+    const input = campo(nombre);
+    if (!input) return;
+    const correr = () => {
+      if (input.dataset.tocado !== "1") return;
+      marcar(input, mensajeCampo(input, resumen()));
+      const alguno = document.querySelector("[aria-invalid='true']");
+      if (!alguno) mostrarError("");
+    };
+    input.addEventListener("blur", () => {
+      input.dataset.tocado = "1";
+      correr();
+    });
+    input.addEventListener("input", correr);
+    input.addEventListener("change", () => {
+      input.dataset.tocado = "1";
+      correr();
+    });
+  });
+}
+
 function iniciarCheckout() {
   prepararPago();
+  restaurarDatos();
+  prepararValidacion();
+  mostrarEntrega(configActual);
   document.querySelector("#pedido")?.addEventListener("submit", enviar);
   escucharArchivo();
   document.addEventListener("reina:carrito", pintarResumen);
   document.addEventListener("reina:config", (evento) => {
     configActual = evento.detail;
+    mostrarEntrega(configActual);
     pintarResumen();
   });
   document.addEventListener("reina:barrio", (evento) => {
@@ -418,6 +513,7 @@ function iniciarCheckout() {
   });
   leerConfig().then((cfg) => {
     configActual = cfg;
+    mostrarEntrega(cfg);
     pintarResumen();
   });
   pintarResumen();
