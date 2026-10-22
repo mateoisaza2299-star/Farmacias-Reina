@@ -1,9 +1,11 @@
-import { negocio, categorias, AVISO_CERRADO } from "./config.js";
+import { negocio, categorias, AVISO_CERRADO, AVISO_FORMULA } from "./config.js";
 import { leerConfig } from "./datos.js";
 import { contarCarrito, fijarCantidad, quitarProducto, resumenCarrito } from "./cart.js";
-import { dinero, marcaVisible } from "./format.js";
+import { dinero, marcaVisible, sanearBusqueda } from "./format.js";
 import { el, fragmento } from "./dom.js";
-import { icono, marcaLogo } from "./icons.js";
+import { icono } from "./icons.js";
+import { supabase } from "./supabase.js";
+import { PORTADA, rutaImagen } from "./ilustraciones.js";
 
 let configActual = { domicilio: 0, pedido_minimo: 0, abierto: true };
 let soltarFoco = null;
@@ -13,15 +15,18 @@ export function obtenerConfig() {
 }
 
 export function avisar(texto) {
-  let toast = document.querySelector(".toast");
-  if (!toast) {
-    toast = el("div", { class: "toast", role: "status", "aria-live": "polite" });
-    document.body.append(toast);
+  let pila = document.querySelector(".toasts");
+  if (!pila) {
+    pila = el("div", { class: "toasts", "aria-live": "polite" });
+    document.body.append(pila);
   }
-  toast.textContent = texto;
-  toast.classList.add("is-on");
-  clearTimeout(avisar.timer);
-  avisar.timer = setTimeout(() => toast.classList.remove("is-on"), 2400);
+  const toast = el("div", { class: "toast", role: "status" }, texto);
+  pila.append(toast);
+  requestAnimationFrame(() => toast.classList.add("is-on"));
+  setTimeout(() => {
+    toast.classList.remove("is-on");
+    setTimeout(() => toast.remove(), 400);
+  }, 2800);
 }
 
 export function volarAlCarrito(imagen) {
@@ -29,7 +34,7 @@ export function volarAlCarrito(imagen) {
     rebotarContador();
     return;
   }
-  const destino = document.querySelector(window.matchMedia("(max-width: 899px)").matches ? ".tabbar [data-open-cart]" : ".header [data-open-cart]");
+  const destino = document.querySelector(window.matchMedia("(max-width: 767px)").matches ? ".tabbar [data-open-cart]" : ".header [data-open-cart]");
   if (!destino) return;
   const desde = imagen.getBoundingClientRect();
   const hacia = destino.getBoundingClientRect();
@@ -111,6 +116,10 @@ function llenarNegocio() {
   document.querySelectorAll("[data-nombre]").forEach((nodo) => {
     nodo.textContent = negocio.nombre;
   });
+  document.querySelectorAll(".editar").forEach((nodo) => {
+    nodo.className = "por-confirmar";
+    nodo.textContent = "Por confirmar";
+  });
 }
 
 function esquema() {
@@ -168,7 +177,7 @@ function llenarBarrios() {
   const guardado = localStorage.getItem("barrio_reina") || "";
   document.querySelectorAll("[data-barrio]").forEach((select) => {
     const actual = select.value || guardado;
-    select.replaceChildren(el("option", { value: "" }, "Tu barrio"));
+    select.replaceChildren(el("option", { value: "" }, "Elige barrio"));
     const zonas = [...negocio.zonas];
     if (guardado && !zonas.includes(guardado)) zonas.push(guardado);
     zonas.forEach((zona) => select.append(el("option", { value: zona }, zona)));
@@ -388,31 +397,189 @@ function mostrarCierre(abierto) {
   if (visible) document.documentElement.style.setProperty("--cerrado-h", `${banner.offsetHeight}px`);
 }
 
+const sugeridos = new Map();
+let indiceSug = -1;
+let buscarTimer = 0;
+let sugToken = 0;
+
+function listaSugerencias() {
+  return document.getElementById("sugerencias");
+}
+
+function cerrarSugerencias() {
+  const lista = listaSugerencias();
+  if (!lista) return;
+  lista.hidden = true;
+  lista.replaceChildren();
+  indiceSug = -1;
+  document.getElementById("buscar")?.setAttribute("aria-expanded", "false");
+  document.getElementById("buscar")?.removeAttribute("aria-activedescendant");
+}
+
+function marcarSugerencia() {
+  const lista = listaSugerencias();
+  if (!lista) return;
+  [...lista.children].forEach((nodo, i) => {
+    nodo.classList.toggle("is-on", i === indiceSug);
+    if (i === indiceSug) nodo.scrollIntoView({ block: "nearest" });
+  });
+  const activo = lista.children[indiceSug];
+  const input = document.getElementById("buscar");
+  if (!input) return;
+  if (activo) input.setAttribute("aria-activedescendant", activo.id);
+  else input.removeAttribute("aria-activedescendant");
+}
+
+function elegirSugerencia(producto) {
+  cerrarSugerencias();
+  if (document.body.dataset.page === "inicio") {
+    document.dispatchEvent(new CustomEvent("reina:producto", { detail: producto }));
+    return;
+  }
+  location.href = `index.html?producto=${encodeURIComponent(producto.id)}`;
+}
+
+async function pedirSugerencias(texto) {
+  const token = ++sugToken;
+  const lista = listaSugerencias();
+  const q = sanearBusqueda(texto);
+  if (!lista || q.length < 2) {
+    cerrarSugerencias();
+    return;
+  }
+  const cat = document.querySelector("[data-search-cat]")?.value || "";
+  let consulta = supabase
+    .from("productos")
+    .select("id,nombre,marca,presentacion,precio,imagen,categoria,stock,requiere_formula,activo,precio_anterior")
+    .eq("activo", true);
+  if (categorias.some((item) => item.id === cat)) consulta = consulta.eq("categoria", cat);
+  const { data, error } = await consulta.or(`nombre.ilike.%${q}%,marca.ilike.%${q}%`).limit(6);
+  if (token !== sugToken || texto !== document.getElementById("buscar")?.value) return;
+  if (error || !data?.length) {
+    cerrarSugerencias();
+    return;
+  }
+  sugeridos.clear();
+  lista.replaceChildren(...data.map((producto) => {
+    sugeridos.set(String(producto.id), producto);
+    const img = el("img", { src: rutaImagen(producto), alt: "", width: "40", height: "40" });
+    img.addEventListener("error", () => {
+      const reserva = rutaImagen({ ...producto, imagen: "" });
+      if (img.getAttribute("src") !== reserva) img.src = reserva;
+    });
+    const opcion = el("li", { role: "option", id: `sug-${producto.id}`, "data-sug": producto.id },
+      img,
+      el("span", {}, producto.nombre),
+      el("strong", {}, dinero(producto.precio))
+    );
+    opcion.addEventListener("mousedown", (evento) => evento.preventDefault());
+    opcion.addEventListener("click", () => elegirSugerencia(producto));
+    return opcion;
+  }));
+  lista.hidden = false;
+  document.getElementById("buscar")?.setAttribute("aria-expanded", "true");
+  indiceSug = -1;
+}
+
 function busqueda() {
   const params = new URLSearchParams(location.search);
   const inicial = params.get("q") || "";
+  const categoria = params.get("categoria") || "";
+  document.querySelectorAll("[data-search-cat]").forEach((select) => {
+    if ([...select.options].some((opcion) => opcion.value === categoria)) select.value = categoria;
+  });
   document.querySelectorAll("[data-search-input]").forEach((input) => {
     if (inicial) input.value = inicial;
     input.addEventListener("input", () => {
-      document.querySelectorAll("[data-search-input]").forEach((otro) => {
-        if (otro !== input) otro.value = input.value;
-      });
-      if (document.body.dataset.page === "inicio") {
-        document.dispatchEvent(new CustomEvent("reina:escribir", { detail: input.value }));
+      clearTimeout(buscarTimer);
+      buscarTimer = setTimeout(() => pedirSugerencias(input.value), 180);
+    });
+    input.addEventListener("keydown", (evento) => {
+      const lista = listaSugerencias();
+      const abierto = lista && !lista.hidden && lista.children.length;
+      if (!abierto) return;
+      if (evento.key === "ArrowDown") {
+        evento.preventDefault();
+        indiceSug = Math.min(lista.children.length - 1, indiceSug + 1);
+        marcarSugerencia();
+      } else if (evento.key === "ArrowUp") {
+        evento.preventDefault();
+        indiceSug = Math.max(0, indiceSug - 1);
+        marcarSugerencia();
+      } else if (evento.key === "Escape") {
+        cerrarSugerencias();
+      } else if (evento.key === "Enter" && indiceSug >= 0) {
+        evento.preventDefault();
+        const producto = sugeridos.get(lista.children[indiceSug].dataset.sug);
+        if (producto) elegirSugerencia(producto);
       }
     });
+  });
+  document.addEventListener("click", (evento) => {
+    if (!evento.target.closest(".search-wrap")) cerrarSugerencias();
   });
   document.querySelectorAll("[data-search-form]").forEach((form) => {
     form.addEventListener("submit", (evento) => {
       evento.preventDefault();
       const input = form.querySelector("[data-search-input]");
+      const select = form.querySelector("[data-search-cat]");
       const q = input ? input.value.trim() : "";
+      const cat = select ? select.value : "";
+      cerrarSugerencias();
       if (document.body.dataset.page === "inicio") {
-        document.dispatchEvent(new CustomEvent("reina:buscar", { detail: q }));
+        document.dispatchEvent(new CustomEvent("reina:buscar", { detail: { q, categoria: cat } }));
         return;
       }
-      location.href = `index.html?q=${encodeURIComponent(q)}#catalogo`;
+      const url = new URL("index.html", location.href);
+      if (q) url.searchParams.set("q", q);
+      if (cat) url.searchParams.set("categoria", cat);
+      url.hash = "catalogo";
+      location.href = `${url.pathname}${url.search}${url.hash}`;
     });
+  });
+}
+
+let menuCats = null;
+
+function asegurarMenu() {
+  if (menuCats) return menuCats;
+  const grid = el("div", { class: "mega-grid" });
+  categorias.forEach((categoria) => {
+    grid.append(el("a", {
+      href: `index.html?categoria=${encodeURIComponent(categoria.id)}#catalogo`,
+      "data-cat-link": "",
+      "data-cat": categoria.id
+    },
+      el("img", { src: PORTADA[categoria.id] || PORTADA.Medicamentos, alt: "", width: "72", height: "72" }),
+      el("span", {}, categoria.nombre)
+    ));
+  });
+  menuCats = el("div", { class: "mega", id: "menu-categorias", hidden: true },
+    el("div", { class: "mega-card" }, el("h2", {}, "Todas las categorías"), grid)
+  );
+  document.body.append(menuCats);
+  return menuCats;
+}
+
+function cerrarMenu() {
+  if (!menuCats || menuCats.hidden) return;
+  menuCats.hidden = true;
+  document.querySelectorAll("[data-open-cats]").forEach((boton) => boton.setAttribute("aria-expanded", "false"));
+}
+
+function abrirMenu() {
+  const menu = asegurarMenu();
+  menu.hidden = false;
+  document.querySelectorAll("[data-open-cats]").forEach((boton) => boton.setAttribute("aria-expanded", "true"));
+}
+
+function marcarCategorias() {
+  const params = new URLSearchParams(location.search);
+  const cat = params.get("categoria") || "";
+  const vista = params.get("vista") || "";
+  const catalogo = Boolean(cat || params.get("q") || vista === "catalogo");
+  document.querySelectorAll(".cat-bar [data-cat-link]").forEach((link) => {
+    link.classList.toggle("is-on", catalogo && !vista.startsWith("oferta") && vista !== "nuevos" && (link.dataset.cat || "") === cat);
   });
 }
 
@@ -420,27 +587,71 @@ function navegacion() {
   document.querySelectorAll("[data-open-cart]").forEach((boton) => {
     boton.addEventListener("click", abrirCarrito);
   });
+  document.addEventListener("click", (evento) => {
+    const boton = evento.target.closest("[data-open-cats]");
+    if (boton) {
+      evento.preventDefault();
+      if (menuCats && !menuCats.hidden) cerrarMenu();
+      else abrirMenu();
+      return;
+    }
+    if (evento.target.closest("[data-cat-link]")) cerrarMenu();
+    else if (menuCats && !menuCats.hidden && !evento.target.closest("#menu-categorias")) cerrarMenu();
+  });
+  document.addEventListener("keydown", (evento) => {
+    if (evento.key === "Escape" && menuCats && !menuCats.hidden) {
+      evento.preventDefault();
+      cerrarMenu();
+    }
+  });
   const buscar = document.querySelector("[data-tab='buscar']");
   if (buscar && document.body.dataset.page === "inicio") {
     buscar.addEventListener("click", (evento) => {
       evento.preventDefault();
-      const input = document.getElementById("buscar");
-      document.getElementById("catalogo")?.scrollIntoView({ block: "start", behavior: "auto" });
-      input?.focus();
+      document.getElementById("buscar")?.focus();
     });
   }
   if (location.hash === "#carrito") abrirCarrito();
   window.addEventListener("hashchange", () => {
     if (location.hash === "#carrito") abrirCarrito();
   });
+  marcarCategorias();
+  document.addEventListener("reina:filtros", marcarCategorias);
 }
 
 function cabeceraFija() {
   const header = document.querySelector("[data-header]");
   if (!header) return;
-  const aplicar = () => header.classList.toggle("is-stuck", window.scrollY > 4);
+  let ultimo = window.scrollY;
+  const aplicar = () => {
+    const y = window.scrollY;
+    header.classList.toggle("is-stuck", y > 4);
+    if (y < 40) header.classList.remove("is-compact");
+    else if (y > ultimo + 4) header.classList.add("is-compact");
+    else if (y < ultimo - 4) header.classList.remove("is-compact");
+    ultimo = y;
+  };
   aplicar();
   window.addEventListener("scroll", aplicar, { passive: true });
+}
+
+function avisoLegal() {
+  if (document.querySelector(".rx-legal")) return;
+  const nota = el("p", { class: "rx-legal", title: AVISO_FORMULA }, AVISO_FORMULA);
+  document.body.append(nota);
+  const aplicar = () => document.documentElement.style.setProperty("--legal-h", `${nota.offsetHeight}px`);
+  aplicar();
+  if ("ResizeObserver" in window) new ResizeObserver(aplicar).observe(nota);
+}
+
+function prepararWhatsapp() {
+  const digitos = String(negocio.whatsapp || "").replace(/\D/g, "");
+  if (!digitos) return;
+  document.querySelectorAll("[data-whatsapp]").forEach((nodo) => {
+    nodo.href = `https://wa.me/${digitos}`;
+    nodo.target = "_blank";
+    nodo.rel = "noopener noreferrer";
+  });
 }
 
 function pintarBeta() {
@@ -479,6 +690,8 @@ export function iniciarLayout() {
   busqueda();
   navegacion();
   cabeceraFija();
+  avisoLegal();
+  prepararWhatsapp();
   document.addEventListener("reina:carrito", pintarDrawer);
   leerConfig().then((cfg) => {
     configActual = cfg;

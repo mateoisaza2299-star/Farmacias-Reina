@@ -24,21 +24,64 @@
 <body data-page="legal">
   <a class="skip" href="#contenido">Saltar al contenido</a>
   <header class="header" data-header>
-    <div class="header-inner">
-      <a class="logo" href="index.html">
-        <span class="logo-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path fill="#fff" d="M14 6h4v8h8v4h-8v8h-4v-8H6v-4h8V6z"/></svg></span>
-        <span class="logo-text"><span class="logo-name">Droguerías Reina</span><span class="logo-place">Funza</span></span>
-      </a>
-      <form class="search" role="search" data-search-form>
-        <label class="sr" for="buscar">Buscar productos</label>
-        <input id="buscar" name="q" type="search" placeholder="Busca por nombre o marca" autocomplete="off" enterkeyhint="search" data-search-input>
-        <button type="submit">Buscar</button>
-      </form>
-      <label class="barrio"><span class="sr">Barrio de entrega</span><select data-barrio aria-label="Barrio de entrega"></select></label>
-      <button type="button" class="cart-button" data-open-cart aria-haspopup="dialog" aria-expanded="false" aria-controls="carrito" aria-label="Abrir carrito">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14l-1.5 11H6.5zM9 7V5.8a3 3 0 0 1 6 0V7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span class="cart-count" data-cart-count hidden>0</span>
-      </button>
+    <div class="header-top">
+      <div class="header-bar">
+        <a class="logo" href="index.html">
+          <span class="logo-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path fill="#fff" d="M14 6h4v8h8v4h-8v8h-4v-8H6v-4h8V6z"/></svg></span>
+          <span class="logo-text"><span class="logo-name">Droguerías Reina</span><span class="logo-place">Funza</span></span>
+        </a>
+        <div class="search-wrap">
+          <form class="search" role="search" data-search-form>
+            <label class="sr" for="buscar-cat">Categoría</label>
+            <select id="buscar-cat" data-search-cat aria-label="Categoría">
+              <option value="">Todas</option>
+              <option>Medicamentos</option>
+              <option>Cuidado personal</option>
+              <option>Bebé</option>
+              <option>Belleza y dermocosmética</option>
+              <option>Vitaminas y suplementos</option>
+              <option>Botiquín</option>
+              <option>Adulto mayor</option>
+              <option>Hogar y aseo</option>
+            </select>
+            <label class="sr" for="buscar">Buscar productos</label>
+            <input id="buscar" name="q" type="search" placeholder="Busca por nombre o marca" autocomplete="off" enterkeyhint="search" role="combobox" aria-expanded="false" aria-controls="sugerencias" aria-autocomplete="list" data-search-input>
+            <button type="submit" aria-label="Buscar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 1 0-7-7 7 7 0 0 0 7 7zM20 20l-3.6-3.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+          </form>
+          <ul id="sugerencias" class="suggest" role="listbox" hidden></ul>
+        </div>
+        <label class="deliver"><span>Entregar en</span><select data-barrio aria-label="Entregar en"></select></label>
+        <a class="orders-link" href="seguimiento.html" aria-label="Mis pedidos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.5h10v17l-5-2.6-5 2.6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></a>
+        <button type="button" class="cart-button" data-open-cart aria-haspopup="dialog" aria-expanded="false" aria-controls="carrito" aria-label="Abrir carrito">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14l-1.5 11H6.5zM9 7V5.8a3 3 0 0 1 6 0V7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="cart-count" data-cart-count hidden>0</span>
+        </button>
+      </div>
+    </div>
+    <div class="header-fold">
+      <div class="header-fold-inner">
+        <div class="header-mid">
+          <nav aria-label="Accesos">
+            <button type="button" data-open-cats aria-expanded="false" aria-controls="menu-categorias">Todas las categorías</button>
+            <a href="index.html?vista=ofertas#catalogo" data-vista="ofertas">Ofertas</a>
+            <a href="favoritos.html">Favoritos</a>
+            <a href="recompra.html">Volver a comprar</a>
+            <a href="seguimiento.html">Mis pedidos</a>
+            <a href="pagar.html#formula">Sube tu fórmula</a>
+          </nav>
+        </div>
+        <nav class="cat-bar" data-cat-bar aria-label="Categorías">
+          <a href="index.html#catalogo" data-cat-link data-cat="">Todas</a>
+          <a href="index.html?categoria=Medicamentos#catalogo" data-cat-link data-cat="Medicamentos">Medicamentos</a>
+          <a href="index.html?categoria=Cuidado%20personal#catalogo" data-cat-link data-cat="Cuidado personal">Cuidado personal</a>
+          <a href="index.html?categoria=Beb%C3%A9#catalogo" data-cat-link data-cat="Bebé">Bebé</a>
+          <a href="index.html?categoria=Belleza%20y%20dermocosm%C3%A9tica#catalogo" data-cat-link data-cat="Belleza y dermocosmética">Belleza y dermocosmética</a>
+          <a href="index.html?categoria=Vitaminas%20y%20suplementos#catalogo" data-cat-link data-cat="Vitaminas y suplementos">Vitaminas y suplementos</a>
+          <a href="index.html?categoria=Botiqu%C3%ADn#catalogo" data-cat-link data-cat="Botiquín">Botiquín</a>
+          <a href="index.html?categoria=Adulto%20mayor#catalogo" data-cat-link data-cat="Adulto mayor">Adulto mayor</a>
+          <a href="index.html?categoria=Hogar%20y%20aseo#catalogo" data-cat-link data-cat="Hogar y aseo">Hogar y aseo</a>
+        </nav>
+      </div>
     </div>
   </header>
   <div class="closed-banner" data-cerrado hidden>Por ahora no estamos recibiendo pedidos</div>
@@ -107,8 +150,9 @@
   </footer>
   <nav class="tabbar" aria-label="Navegación principal">
     <a href="index.html#inicio" data-tab="inicio"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.2 12 4l8 7.2M7 10.8V20h10v-9.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>Inicio</span></a>
-    <a href="index.html#categorias" data-tab="categorias"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg><span>Categorías</span></a>
+    <button type="button" data-open-cats data-tab="categorias" aria-expanded="false" aria-controls="menu-categorias"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg><span>Categorías</span></button>
     <a href="index.html#buscar" data-tab="buscar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 1 0-7-7 7 7 0 0 0 7 7zM20 20l-3.6-3.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Buscar</span></a>
+    <a href="favoritos.html" data-tab="favoritos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19.5s-6.5-4-6.5-8.4a3.6 3.6 0 0 1 6.5-2 3.6 3.6 0 0 1 6.5 2c0 4.4-6.5 8.4-6.5 8.4z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg><span>Favoritos</span></a>
     <button type="button" data-open-cart data-tab="carrito" aria-haspopup="dialog" aria-expanded="false" aria-controls="carrito"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14l-1.5 11H6.5zM9 7V5.8a3 3 0 0 1 6 0V7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Carrito</span><span class="cart-count" data-cart-count hidden>0</span></button>
   </nav>
   <noscript><p class="rx-note container">Para ver el catálogo y armar tu pedido necesitas activar JavaScript.</p></noscript>

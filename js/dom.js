@@ -29,8 +29,8 @@ export function fragmento(texto) {
     if (!parte) continue;
     if (parte.startsWith("EDITAR")) {
       const marca = document.createElement("span");
-      marca.className = "editar";
-      marca.textContent = parte;
+      marca.className = "por-confirmar";
+      marca.textContent = "Por confirmar";
       frag.append(marca);
     } else frag.append(document.createTextNode(parte));
   }

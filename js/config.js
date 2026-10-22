@@ -47,3 +47,5 @@ export const AVISO_CERRADO = "Por ahora no estamos recibiendo pedidos";
 export const AVISO_FORMULA = "Los medicamentos que requieren fórmula médica solo se entregan con la fórmula vigente. Si tienes dudas, consulta a tu médico o a nuestro regente de farmacia.";
 
 export const MENSAJE_REVISION = "Tu pedido quedó en revisión. Nuestro regente validará la fórmula y te habilitaremos el pago.";
+
+export const ofertasFlashFin = "";
