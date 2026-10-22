@@ -5,6 +5,7 @@ import { dinero, estadoHorario, marcaVisible } from "./format.js";
 import { enlaceWhatsapp, numeroWhatsapp } from "./pago.js";
 import { el } from "./dom.js";
 import { icono } from "./icons.js";
+import { animarDinero, lineaEsqueleto, marcarEsqueleto, prepararImagen } from "./motion.js";
 
 let configActual = { domicilio: 0, pedido_minimo: 0, abierto: true };
 let soltarFoco = null;
@@ -14,15 +15,19 @@ export function obtenerConfig() {
 }
 
 export function avisar(texto) {
-  let toast = document.querySelector(".toast");
-  if (!toast) {
-    toast = el("div", { class: "toast", role: "status", "aria-live": "polite" });
-    document.body.append(toast);
+  let pila = document.querySelector(".toast-stack");
+  if (!pila) {
+    pila = el("div", { class: "toast-stack", role: "status", "aria-live": "polite" });
+    document.body.append(pila);
   }
-  toast.textContent = texto;
-  toast.classList.add("is-on");
-  clearTimeout(avisar.timer);
-  avisar.timer = setTimeout(() => toast.classList.remove("is-on"), 2400);
+  const toast = el("div", { class: "toast" }, texto);
+  pila.append(toast);
+  requestAnimationFrame(() => toast.classList.add("is-on"));
+  setTimeout(() => {
+    toast.classList.remove("is-on");
+    toast.classList.add("is-out");
+    setTimeout(() => toast.remove(), 220);
+  }, 2400);
 }
 
 export function volarAlCarrito(imagen) {
@@ -37,20 +42,19 @@ export function volarAlCarrito(imagen) {
   const clon = imagen.cloneNode(true);
   clon.className = "fly-img";
   clon.alt = "";
-  clon.style.left = `${desde.left}px`;
-  clon.style.top = `${desde.top}px`;
-  clon.style.width = `${Math.max(desde.width, 48)}px`;
-  clon.style.height = `${Math.max(desde.height, 48)}px`;
-  document.body.append(clon);
   const dx = hacia.left + hacia.width / 2 - (desde.left + desde.width / 2);
   const dy = hacia.top + hacia.height / 2 - (desde.top + desde.height / 2);
-  requestAnimationFrame(() => {
-    clon.style.transform = `translate(${dx}px, ${dy}px) scale(0.15)`;
-    clon.style.opacity = "0.2";
-  });
+  clon.style.setProperty("--l", `${desde.left}px`);
+  clon.style.setProperty("--t", `${desde.top}px`);
+  clon.style.setProperty("--w", `${Math.max(desde.width, 48)}px`);
+  clon.style.setProperty("--h", `${Math.max(desde.height, 48)}px`);
+  clon.style.setProperty("--x", `${dx}px`);
+  clon.style.setProperty("--y", `${dy}px`);
+  document.body.append(clon);
+  requestAnimationFrame(() => clon.classList.add("is-go"));
   const limpiar = () => clon.remove();
   clon.addEventListener("transitionend", limpiar, { once: true });
-  setTimeout(limpiar, 700);
+  setTimeout(limpiar, 520);
   rebotarContador();
 }
 
@@ -173,22 +177,6 @@ function esquema() {
   if (imagen) imagen.content = `${negocio.sitio}assets/og.jpg`;
 }
 
-function revelar() {
-  const nodos = document.querySelectorAll(".reveal");
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !("IntersectionObserver" in window)) {
-    nodos.forEach((nodo) => nodo.classList.add("is-in"));
-    return;
-  }
-  const observador = new IntersectionObserver((entradas) => {
-    entradas.forEach((entrada) => {
-      if (!entrada.isIntersecting) return;
-      entrada.target.classList.add("is-in");
-      observador.unobserve(entrada.target);
-    });
-  }, { threshold: 0.08, rootMargin: "0px 0px -8% 0px" });
-  nodos.forEach((nodo) => observador.observe(nodo));
-}
-
 function llenarBarrios() {
   const guardado = localStorage.getItem("barrio_reina") || "";
   document.querySelectorAll("[data-barrio]").forEach((campo) => {
@@ -223,7 +211,7 @@ function actualizarContador() {
 function lineaCarrito(item) {
   const media = el("div", { class: "line-media" });
   if (item.imagen) {
-    const img = el("img", { src: item.imagen, alt: "" });
+    const img = prepararImagen(el("img", { src: item.imagen, alt: "", width: "64", height: "64" }));
     img.addEventListener("error", () => img.remove());
     media.append(img);
   }
@@ -257,6 +245,19 @@ function lineaCarrito(item) {
 export function pintarDrawer() {
   const cuerpo = document.querySelector("[data-cart-body]");
   if (!cuerpo) return;
+  if (cuerpo.dataset.visto !== "1") {
+    if (cuerpo.dataset.espera === "1") return;
+    const falta = 250 - (performance.now() - Number(cuerpo.dataset.sk || performance.now()));
+    if (falta > 0 && cuerpo.querySelector(".skeleton")) {
+      cuerpo.dataset.espera = "1";
+      setTimeout(() => {
+        cuerpo.dataset.visto = "1";
+        pintarDrawer();
+      }, falta);
+      return;
+    }
+    cuerpo.dataset.visto = "1";
+  }
   const resumen = resumenCarrito(configActual.domicilio, configActual.pedido_minimo);
   cuerpo.replaceChildren();
   if (!resumen.items.length) {
@@ -272,9 +273,9 @@ export function pintarDrawer() {
   const total = raiz.querySelector("[data-total]");
   const minimo = raiz.querySelector("[data-minimo]");
   const pago = raiz.querySelector("[data-checkout]");
-  if (subtotal) subtotal.textContent = dinero(resumen.subtotal);
-  if (domicilio) domicilio.textContent = dinero(resumen.domicilio);
-  if (total) total.textContent = dinero(resumen.total);
+  animarDinero(subtotal, resumen.subtotal);
+  animarDinero(domicilio, resumen.domicilio);
+  animarDinero(total, resumen.total);
   if (minimo) {
     const corto = resumen.items.length > 0 && resumen.falta > 0;
     minimo.hidden = !corto;
@@ -335,7 +336,7 @@ function asegurarDrawer() {
       el("h2", { id: "carrito-titulo" }, "Tu carrito"),
       el("button", { type: "button", class: "icon-btn", "data-close-cart": "true", "aria-label": "Cerrar carrito" }, icono("close"))
     ),
-    el("div", { class: "drawer-body", "data-cart-body": "true" }),
+    el("div", { class: "drawer-body", "data-cart-body": "true" }, lineaEsqueleto(), lineaEsqueleto(), lineaEsqueleto()),
     el("div", { class: "drawer-foot" },
       el("div", { class: "sum-row" }, el("span", {}, "Subtotal estimado"), el("strong", { "data-subtotal": "true" }, dinero(0))),
       el("div", { class: "sum-row" }, el("span", {}, "Domicilio"), el("strong", { "data-domicilio": "true" }, dinero(0))),
@@ -354,6 +355,8 @@ function asegurarDrawer() {
     if (pago.getAttribute("aria-disabled") === "true") evento.preventDefault();
   });
   document.body.append(overlay, drawer);
+  const cuerpo = drawer.querySelector("[data-cart-body]");
+  marcarEsqueleto(cuerpo);
 }
 
 export function abrirCarrito() {
@@ -558,7 +561,6 @@ export function iniciarLayout() {
   prepararWhatsapp();
   cargarMapas();
   esquema();
-  revelar();
   llenarBarrios();
   asegurarDrawer();
   pintarDrawer();

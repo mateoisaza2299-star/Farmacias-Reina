@@ -18,7 +18,7 @@
   <div data-app hidden>
     <header class="admin-top">
       <a class="logo" href="index.html" data-logo>
-        <img class="logo-img" src="assets/logo/logo-192.png" width="44" height="44" alt="">
+        <img class="logo-img" src="assets/logo/logo-192.png" width="44" height="44" alt="" fetchpriority="high" decoding="async">
         <span class="logo-text"><span class="logo-name">Droguerías Reina</span><span class="logo-place">Panel</span></span>
       </a>
       <div class="admin-user">
@@ -30,6 +30,7 @@
       <button type="button" role="tab" id="tab-pedidos" aria-controls="panel-pedidos" aria-selected="true" data-tab="pedidos">Pedidos</button>
       <button type="button" role="tab" id="tab-productos" aria-controls="panel-productos" data-tab="productos">Productos</button>
       <button type="button" role="tab" id="tab-ajustes" aria-controls="panel-ajustes" data-tab="ajustes">Ajustes</button>
+      <span class="nav-indicator" aria-hidden="true"></span>
     </div>
     <main id="contenido">
       <section id="panel-pedidos" role="tabpanel" aria-labelledby="tab-pedidos" data-panel="pedidos"></section>

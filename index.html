@@ -27,8 +27,8 @@
   <link rel="icon" href="assets/logo/favicon-32.webp" type="image/webp" sizes="32x32">
   <link rel="apple-touch-icon" href="assets/logo/apple-touch-icon.png">
   <link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" as="image" href="assets/logo/logo-192.webp" type="image/webp" fetchpriority="high">
   <link rel="stylesheet" href="css/styles.css">
-  <noscript><style>.reveal{opacity:1;transform:none}</style></noscript>
 </head>
 <body data-page="inicio">
   <a class="skip" href="#contenido">Saltar al contenido</a>
@@ -37,7 +37,7 @@
       <a class="logo" href="index.html">
         <picture>
           <source srcset="assets/logo/logo-192.webp" type="image/webp">
-          <img class="logo-img" src="assets/logo/logo-192.png" width="44" height="44" alt="">
+          <img class="logo-img" src="assets/logo/logo-192.png" width="44" height="44" alt="" fetchpriority="high" decoding="async">
         </picture>
         <span class="logo-text">
           <span class="logo-name">Droguerías Reina</span>
@@ -56,6 +56,14 @@
       </button>
     </div>
     <p class="hours-badge" data-horario>Lunes a sábado de 8:00 am a 8:00 pm</p>
+    <nav class="section-nav" aria-label="Secciones">
+      <a href="#inicio" data-spy="inicio">Inicio</a>
+      <a href="#categorias" data-spy="categorias">Categorías</a>
+      <a href="#ofertas" data-spy="ofertas">Ofertas</a>
+      <a href="#como-pedir" data-spy="como-pedir">Cómo pedir</a>
+      <a href="#catalogo" data-spy="catalogo">Catálogo</a>
+      <span class="nav-indicator" aria-hidden="true"></span>
+    </nav>
   </header>
   <div class="closed-banner" data-cerrado hidden>Por ahora no estamos recibiendo pedidos</div>
   <main id="contenido">
@@ -65,7 +73,16 @@
           <h2>Categorías</h2>
           <p>Medicamentos, cuidado y productos para la casa, con el nombre claro de cada uno.</p>
         </div>
-        <div class="chips" data-categorias></div>
+        <div class="chips" data-categorias aria-busy="true">
+          <span class="sk-chip" aria-hidden="true"><span class="skeleton chip-icon"></span><span class="skeleton sk-line"></span></span>
+          <span class="sk-chip" aria-hidden="true"><span class="skeleton chip-icon"></span><span class="skeleton sk-line"></span></span>
+          <span class="sk-chip" aria-hidden="true"><span class="skeleton chip-icon"></span><span class="skeleton sk-line"></span></span>
+          <span class="sk-chip" aria-hidden="true"><span class="skeleton chip-icon"></span><span class="skeleton sk-line"></span></span>
+          <span class="sk-chip" aria-hidden="true"><span class="skeleton chip-icon"></span><span class="skeleton sk-line"></span></span>
+          <span class="sk-chip" aria-hidden="true"><span class="skeleton chip-icon"></span><span class="skeleton sk-line"></span></span>
+          <span class="sk-chip" aria-hidden="true"><span class="skeleton chip-icon"></span><span class="skeleton sk-line"></span></span>
+          <span class="sk-chip" aria-hidden="true"><span class="skeleton chip-icon"></span><span class="skeleton sk-line"></span></span>
+        </div>
       </div>
     </section>
     <section class="hero" id="inicio">
@@ -189,7 +206,12 @@
           <h2>Ofertas</h2>
           <p>Descuentos solo en productos que no requieren fórmula médica.</p>
         </div>
-        <div class="offers" data-ofertas></div>
+        <div class="offers" data-ofertas aria-busy="true">
+          <div class="skeleton-card" aria-hidden="true"><div class="skeleton sk-media"></div><div class="skeleton sk-line"></div><div class="skeleton sk-line short"></div><div class="skeleton sk-btn"></div></div>
+          <div class="skeleton-card" aria-hidden="true"><div class="skeleton sk-media"></div><div class="skeleton sk-line"></div><div class="skeleton sk-line short"></div><div class="skeleton sk-btn"></div></div>
+          <div class="skeleton-card" aria-hidden="true"><div class="skeleton sk-media"></div><div class="skeleton sk-line"></div><div class="skeleton sk-line short"></div><div class="skeleton sk-btn"></div></div>
+          <div class="skeleton-card" aria-hidden="true"><div class="skeleton sk-media"></div><div class="skeleton sk-line"></div><div class="skeleton sk-line short"></div><div class="skeleton sk-btn"></div></div>
+        </div>
       </div>
     </section>
     <section class="section" id="como-pedir">
@@ -224,11 +246,24 @@
           </label>
         </div>
         <p class="sr" aria-live="polite" data-catalogo-estado></p>
-        <div class="grid" data-grid></div>
+        <div class="grid" data-grid aria-busy="true">
+          <div class="skeleton-card" aria-hidden="true"><div class="skeleton sk-media"></div><div class="skeleton sk-line"></div><div class="skeleton sk-line short"></div><div class="skeleton sk-btn"></div></div>
+          <div class="skeleton-card" aria-hidden="true"><div class="skeleton sk-media"></div><div class="skeleton sk-line"></div><div class="skeleton sk-line short"></div><div class="skeleton sk-btn"></div></div>
+          <div class="skeleton-card" aria-hidden="true"><div class="skeleton sk-media"></div><div class="skeleton sk-line"></div><div class="skeleton sk-line short"></div><div class="skeleton sk-btn"></div></div>
+          <div class="skeleton-card" aria-hidden="true"><div class="skeleton sk-media"></div><div class="skeleton sk-line"></div><div class="skeleton sk-line short"></div><div class="skeleton sk-btn"></div></div>
+          <div class="skeleton-card" aria-hidden="true"><div class="skeleton sk-media"></div><div class="skeleton sk-line"></div><div class="skeleton sk-line short"></div><div class="skeleton sk-btn"></div></div>
+          <div class="skeleton-card" aria-hidden="true"><div class="skeleton sk-media"></div><div class="skeleton sk-line"></div><div class="skeleton sk-line short"></div><div class="skeleton sk-btn"></div></div>
+          <div class="skeleton-card" aria-hidden="true"><div class="skeleton sk-media"></div><div class="skeleton sk-line"></div><div class="skeleton sk-line short"></div><div class="skeleton sk-btn"></div></div>
+          <div class="skeleton-card" aria-hidden="true"><div class="skeleton sk-media"></div><div class="skeleton sk-line"></div><div class="skeleton sk-line short"></div><div class="skeleton sk-btn"></div></div>
+          <div class="skeleton-card" aria-hidden="true"><div class="skeleton sk-media"></div><div class="skeleton sk-line"></div><div class="skeleton sk-line short"></div><div class="skeleton sk-btn"></div></div>
+          <div class="skeleton-card" aria-hidden="true"><div class="skeleton sk-media"></div><div class="skeleton sk-line"></div><div class="skeleton sk-line short"></div><div class="skeleton sk-btn"></div></div>
+          <div class="skeleton-card" aria-hidden="true"><div class="skeleton sk-media"></div><div class="skeleton sk-line"></div><div class="skeleton sk-line short"></div><div class="skeleton sk-btn"></div></div>
+          <div class="skeleton-card" aria-hidden="true"><div class="skeleton sk-media"></div><div class="skeleton sk-line"></div><div class="skeleton sk-line short"></div><div class="skeleton sk-btn"></div></div>
+        </div>
         <nav class="pager" data-pager hidden aria-label="Páginas del catálogo">
-          <button type="button" class="btn btn-ghost" data-prev>Anterior</button>
+          <button type="button" class="btn btn-ghost" data-prev><span class="btn-label">Anterior</span></button>
           <span data-page-label>Página 1</span>
-          <button type="button" class="btn btn-ghost" data-next>Siguiente</button>
+          <button type="button" class="btn btn-ghost" data-next><span class="btn-label">Ver más</span></button>
         </nav>
       </div>
     </section>
@@ -243,31 +278,31 @@
         <div class="faq">
           <details>
             <summary>¿Cuál es el horario?</summary>
-            <p>Atendemos de lunes a sábado de 8:00 am a 8:00 pm. Los domingos no abrimos.</p>
+            <div class="faq-body"><p>Atendemos de lunes a sábado de 8:00 am a 8:00 pm. Los domingos no abrimos.</p></div>
           </details>
           <details>
             <summary>¿A dónde llegan los domicilios?</summary>
-            <p>Hacemos domicilios a Funza y Mosquera. El barrio lo escribes tú al armar el pedido.</p>
+            <div class="faq-body"><p>Hacemos domicilios a Funza y Mosquera. El barrio lo escribes tú al armar el pedido.</p></div>
           </details>
           <details>
             <summary>¿Dónde queda la droguería?</summary>
-            <p>Calle 13 No. 11-06, Funza, Cundinamarca. El botón Cómo llegar abre el mapa.</p>
+            <div class="faq-body"><p>Calle 13 No. 11-06, Funza, Cundinamarca. El botón Cómo llegar abre el mapa.</p></div>
           </details>
           <details>
             <summary>¿Qué pasa si el medicamento requiere fórmula?</summary>
-            <p>Los medicamentos que requieren fórmula médica solo se entregan con la fórmula vigente. Esos productos no se agregan al carrito. Si tienes dudas, consulta a tu médico o a nuestro regente de farmacia.</p>
+            <div class="faq-body"><p>Los medicamentos que requieren fórmula médica solo se entregan con la fórmula vigente. Esos productos no se agregan al carrito. Si tienes dudas, consulta a tu médico o a nuestro regente de farmacia.</p></div>
           </details>
           <details>
             <summary>¿El precio del carrito es el total final?</summary>
-            <p>El carrito muestra un estimado. El total lo calcula la droguería al confirmar el pedido. La página solo envía el producto y la cantidad.</p>
+            <div class="faq-body"><p>El carrito muestra un estimado. El total lo calcula la droguería al confirmar el pedido. La página solo envía el producto y la cantidad.</p></div>
           </details>
           <details>
             <summary>¿Cómo sigo mi pedido?</summary>
-            <p>Al confirmar, guardamos un enlace de seguimiento en este dispositivo. También puedes abrirlo desde Seguir un pedido.</p>
+            <div class="faq-body"><p>Al confirmar, guardamos un enlace de seguimiento en este dispositivo. También puedes abrirlo desde Seguir un pedido.</p></div>
           </details>
           <details>
             <summary>¿Puedo pagar con tarjeta?</summary>
-            <p data-pago-texto="faq">Muy pronto vas a poder pagar en línea con tarjeta, PSE y Nequi. Por ahora pagas al recibir tu pedido, en efectivo o por transferencia.</p>
+            <div class="faq-body"><p data-pago-texto="faq">Muy pronto vas a poder pagar en línea con tarjeta, PSE y Nequi. Por ahora pagas al recibir tu pedido, en efectivo o por transferencia.</p></div>
           </details>
         </div>
       </div>
@@ -289,7 +324,7 @@
       <section>
         <picture>
           <source srcset="assets/logo/logo-192.webp" type="image/webp">
-          <img class="logo-img logo-img-lg" src="assets/logo/logo-192.png" width="64" height="64" alt="Droguerías Reina">
+          <img class="logo-img logo-img-lg" src="assets/logo/logo-192.png" width="64" height="64" alt="Droguerías Reina" loading="lazy" decoding="async">
         </picture>
         <p class="footer-brand">Droguerías Reina</p>
         <p data-field="slogan">Medicamentos de calidad a los mejores precios</p>

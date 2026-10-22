@@ -7,6 +7,7 @@ import { enlaceWhatsapp, enlaceWhatsappPedido, mensajePedidoWhatsapp, montarPago
 import { supabase } from "./supabase.js";
 import { el } from "./dom.js";
 import { iniciarLayout } from "./layout.js";
+import { animarDinero } from "./motion.js";
 
 const TIPOS = {
   "image/jpeg": "jpg",
@@ -71,9 +72,9 @@ function pintarResumen() {
     el("span", {}, `${item.nombre}${item.presentacion ? ` · ${item.presentacion}` : ""} × ${item.cantidad}`),
     el("strong", {}, dinero(item.precio * item.cantidad))
   )));
-  caja.querySelector("[data-subtotal]").textContent = dinero(datos.subtotal);
-  caja.querySelector("[data-domicilio]").textContent = dinero(datos.domicilio);
-  caja.querySelector("[data-total]").textContent = dinero(datos.total);
+  animarDinero(caja.querySelector("[data-subtotal]"), datos.subtotal);
+  animarDinero(caja.querySelector("[data-domicilio]"), datos.domicilio);
+  animarDinero(caja.querySelector("[data-total]"), datos.total);
   const minimo = caja.querySelector("[data-minimo]");
   const corto = hay && datos.falta > 0;
   minimo.hidden = !corto;
@@ -83,7 +84,18 @@ function pintarResumen() {
   const cerrado = configActual.abierto === false;
   const boton = document.querySelector("[data-enviar]");
   boton.disabled = !hay || corto || cerrado || enviando;
-  boton.textContent = cerrado ? "Pago no disponible" : enviando ? "Enviando pedido…" : "Confirmar pedido";
+  let etiqueta = boton.querySelector(".btn-label");
+  if (!etiqueta) {
+    etiqueta = document.createElement("span");
+    etiqueta.className = "btn-label";
+    boton.replaceChildren(etiqueta);
+  }
+  etiqueta.textContent = cerrado ? "Pago no disponible" : "Confirmar pedido";
+  if (enviando && !boton.style.getPropertyValue("--btn-w")) boton.style.setProperty("--btn-w", `${boton.offsetWidth}px`);
+  if (!enviando) boton.style.removeProperty("--btn-w");
+  boton.classList.toggle("is-busy", enviando);
+  if (enviando) boton.setAttribute("aria-busy", "true");
+  else boton.removeAttribute("aria-busy");
   const rx = document.querySelector("[data-rx-resumen]");
   if (rx) rx.hidden = !datos.requiereFormula;
 }

@@ -6,6 +6,7 @@ import { descuento, dinero, esFormula, marcaVisible, sanearBusqueda } from "./fo
 import { enlaceWhatsapp } from "./pago.js";
 import { agregarProducto, sincronizarCarrito } from "./cart.js";
 import { avisar, cerrarCarrito, volarAlCarrito } from "./layout.js";
+import { atenuar, cruzar, desdeEsqueleto, entrar, estadoFallo, marcarEsqueleto, ocupar, prepararImagen, tarjetaEsqueleto, transicionTexto } from "./motion.js";
 
 const POR_PAGINA = 24;
 const COLUMNAS = "id,nombre,marca,presentacion,categoria,precio,precio_anterior,stock,requiere_formula,activo,imagen";
@@ -33,40 +34,9 @@ const ILUSTRACIONES = {
 let secuencia = 0;
 let fichaAbierta = null;
 let soltarFicha = null;
-let observadorArte = null;
 
 function ilustracionDe(categoria) {
   return ILUSTRACIONES[categoria] || ILUSTRACIONES.Medicamentos;
-}
-
-function desfase(id) {
-  const texto = String(id ?? "");
-  let n = 0;
-  for (let i = 0; i < texto.length; i += 1) n = (n + texto.charCodeAt(i) * (i + 1)) % 8;
-  return n;
-}
-
-function vigilarArte() {
-  const tarjetas = document.querySelectorAll(".product");
-  const reducido = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (reducido) {
-    tarjetas.forEach((tarjeta) => tarjeta.classList.remove("is-live"));
-    if (observadorArte) observadorArte.disconnect();
-    return;
-  }
-  if (!("IntersectionObserver" in window)) {
-    tarjetas.forEach((tarjeta) => tarjeta.classList.add("is-live"));
-    return;
-  }
-  if (!observadorArte) {
-    observadorArte = new IntersectionObserver((entradas) => {
-      entradas.forEach((entrada) => {
-        entrada.target.classList.toggle("is-live", entrada.isIntersecting);
-      });
-    }, { rootMargin: "48px 0px", threshold: 0.15 });
-  }
-  observadorArte.disconnect();
-  tarjetas.forEach((tarjeta) => observadorArte.observe(tarjeta));
 }
 
 function leerUrl() {
@@ -107,9 +77,11 @@ function marcarCategorias() {
   });
 }
 
-function pintarCategorias() {
+async function pintarCategorias() {
   const lista = document.querySelector("[data-categorias]");
   if (!lista) return;
+  marcarEsqueleto(lista);
+  await desdeEsqueleto(lista);
   const todas = el("a", {
     class: "chip",
     href: "index.html#catalogo",
@@ -121,6 +93,8 @@ function pintarCategorias() {
     "data-categoria": categoria.id
   }, el("span", { class: "chip-icon" }, icono(categoria.icono)), el("span", {}, categoria.nombre)));
   lista.replaceChildren(todas, ...chips);
+  lista.setAttribute("aria-busy", "false");
+  entrar(lista.querySelectorAll(".chip"), 8);
   lista.addEventListener("click", (evento) => {
     const chip = evento.target.closest("[data-categoria]");
     if (!chip) return;
@@ -129,7 +103,7 @@ function pintarCategorias() {
     estado.pagina = 1;
     marcarCategorias();
     escribirUrl();
-    cargarCatalogo();
+    cargarCatalogo({ modo: "filtro" });
     document.getElementById("catalogo")?.scrollIntoView({ block: "start", behavior: "auto" });
   });
   marcarCategorias();
@@ -151,12 +125,12 @@ function foto(producto) {
   const arte = el("div", { class: "product-art" });
   const reserva = ilustracionDe(producto.categoria);
   const propia = String(producto.imagen || "").trim();
-  const img = el("img", {
+  const img = prepararImagen(el("img", {
     src: propia || reserva,
     alt: [producto.nombre, marcaVisible(producto.marca), producto.presentacion].filter(Boolean).join(", "),
-    loading: "lazy",
-    decoding: "async"
-  });
+    width: "480",
+    height: "480"
+  }));
   img.addEventListener("error", () => {
     if (!img.dataset.reserva && img.getAttribute("src") !== reserva) {
       img.dataset.reserva = "1";
@@ -170,7 +144,7 @@ function foto(producto) {
       caja.classList.add("is-icon");
     }
   });
-  arte.append(img, el("span", { class: "product-glint", "aria-hidden": "true" }));
+  arte.append(img);
   caja.append(arte);
   etiquetas(producto).forEach((tag) => caja.append(tag));
   return caja;
@@ -191,10 +165,11 @@ function agregar(producto, origen) {
   const resultado = agregarProducto(producto);
   if (!resultado.ok) {
     avisar(resultado.mensaje || "No pudimos agregar el producto.");
-    return;
+    return false;
   }
   volarAlCarrito(origen);
   avisar(`Agregaste ${producto.nombre}`);
+  return true;
 }
 
 function accionProducto(producto, imagen) {
@@ -214,12 +189,17 @@ function accionProducto(producto, imagen) {
     });
     return boton;
   }
-  return el("button", {
+  const boton = el("button", {
     type: "button",
     class: "btn btn-add",
-    disabled: agotado,
-    onclick: () => agregar(producto, imagen)
-  }, agotado ? "Agotado" : "Agregar");
+    disabled: agotado
+  }, el("span", { class: "btn-label" }, agotado ? "Agotado" : "Agregar"));
+  boton.addEventListener("click", () => {
+    if (!agregar(producto, imagen)) return;
+    boton.classList.add("is-done");
+    setTimeout(() => boton.classList.remove("is-done"), 600);
+  });
+  return boton;
 }
 
 function tarjeta(producto) {
@@ -237,26 +217,18 @@ function tarjeta(producto) {
     producto.presentacion ? el("span", { class: "product-pres" }, producto.presentacion) : null
   );
   const boton = accionProducto(producto, media.querySelector("img"));
-  const nodo = el("article", { class: "product" }, abrir, el("div", { class: "product-buy" }, precios(producto), boton));
-  nodo.style.setProperty("--float-i", String(desfase(producto.id)));
-  return nodo;
+  return el("article", { class: "product" }, abrir, el("div", { class: "product-buy" }, precios(producto), boton));
 }
 
-function esqueleto(cantidad = 8) {
+function esqueleto(cantidad = 12) {
   const grid = document.querySelector("[data-grid]");
   if (!grid) return;
   grid.setAttribute("aria-busy", "true");
   grid.replaceChildren();
-  for (let i = 0; i < cantidad; i += 1) {
-    grid.append(el("div", { class: "skeleton-card", "aria-hidden": "true" },
-      el("div", { class: "skeleton sk-media" }),
-      el("div", { class: "skeleton sk-line" }),
-      el("div", { class: "skeleton sk-line short" })
-    ));
-  }
+  for (let i = 0; i < cantidad; i += 1) grid.append(tarjetaEsqueleto());
+  marcarEsqueleto(grid);
   const estadoTexto = document.querySelector("[data-catalogo-estado]");
   if (estadoTexto) estadoTexto.textContent = "Cargando productos";
-  vigilarArte();
 }
 
 function anunciar(texto) {
@@ -267,8 +239,7 @@ function anunciar(texto) {
 function pintarVacio() {
   const grid = document.querySelector("[data-grid]");
   grid.setAttribute("aria-busy", "false");
-  const cuentaVacia = document.querySelector("[data-count]");
-  if (cuentaVacia) cuentaVacia.textContent = "0 productos";
+  transicionTexto(document.querySelector("[data-count]"), "0 productos");
   grid.replaceChildren(el("div", { class: "empty-state" },
     icono("search"),
     el("h3", {}, "No encontramos productos"),
@@ -285,42 +256,37 @@ function pintarVacio() {
         });
         marcarCategorias();
         escribirUrl();
-        cargarCatalogo();
+        cargarCatalogo({ modo: "filtro" });
       }
     }, "Limpiar filtros")
   ));
   document.querySelector("[data-pager]").hidden = true;
   anunciar("No hay productos con esos filtros");
-  vigilarArte();
 }
 
 function pintarError() {
   const grid = document.querySelector("[data-grid]");
   grid.setAttribute("aria-busy", "false");
-  const cuenta = document.querySelector("[data-count]");
-  if (cuenta) cuenta.textContent = "No pudimos cargar el catálogo. Inténtalo de nuevo.";
+  transicionTexto(document.querySelector("[data-count]"), "No pudimos cargar el catálogo. Inténtalo de nuevo.");
   const pager = document.querySelector("[data-pager]");
   if (pager) pager.hidden = true;
-  grid.replaceChildren(el("div", { class: "empty-state" },
-    el("h3", {}, "No pudimos cargar el catálogo. Inténtalo de nuevo."),
-    el("button", { type: "button", class: "btn btn-primary", onclick: () => cargarCatalogo() }, "Reintentar")
-  ));
+  grid.replaceChildren(estadoFallo("No pudimos cargar el catálogo. Inténtalo de nuevo.", () => cargarCatalogo()));
   anunciar("No pudimos cargar el catálogo. Inténtalo de nuevo.");
-  vigilarArte();
 }
 
-function pintarProductos(lista) {
+async function pintarProductos(lista) {
   const grid = document.querySelector("[data-grid]");
   grid.setAttribute("aria-busy", "false");
   if (!lista.length) {
+    await cruzar(grid, []);
     pintarVacio();
     return;
   }
-  grid.replaceChildren(...lista.map(tarjeta));
+  await cruzar(grid, lista.map(tarjeta));
   const inicio = (estado.pagina - 1) * POR_PAGINA + 1;
   const fin = inicio + lista.length - 1;
   const cuenta = document.querySelector("[data-count]");
-  if (cuenta) cuenta.textContent = estado.total ? `Mostrando ${inicio}–${fin} de ${estado.total}` : `${lista.length} productos`;
+  transicionTexto(cuenta, estado.total ? `Mostrando ${inicio}–${fin} de ${estado.total}` : `${lista.length} productos`);
   const paginas = Math.max(1, Math.ceil(estado.total / POR_PAGINA));
   const pager = document.querySelector("[data-pager]");
   pager.hidden = paginas < 2;
@@ -329,11 +295,18 @@ function pintarProductos(lista) {
   pager.querySelector("[data-prev]").disabled = estado.pagina <= 1;
   pager.querySelector("[data-next]").disabled = estado.pagina >= paginas;
   anunciar(`${lista.length} productos en el catálogo`);
-  vigilarArte();
 }
 
-async function cargarCatalogo() {
+async function cargarCatalogo(opciones = {}) {
   const id = ++secuencia;
+  const grid = document.querySelector("[data-grid]");
+  const boton = opciones.boton;
+  if (boton) ocupar(boton, true);
+  if (opciones.modo === "filtro" || opciones.modo === "pagina") await atenuar(grid);
+  if (id !== secuencia) {
+    if (boton) ocupar(boton, false);
+    return;
+  }
   esqueleto();
   const desde = (estado.pagina - 1) * POR_PAGINA;
   const hasta = desde + POR_PAGINA - 1;
@@ -344,7 +317,11 @@ async function cargarCatalogo() {
   const [campo, direccion] = estado.orden.split(".");
   consulta = consulta.order(campo, { ascending: direccion !== "desc" }).range(desde, hasta);
   const { data, error, count } = await consulta;
-  if (id !== secuencia) return;
+  if (id !== secuencia) {
+    if (boton) ocupar(boton, false);
+    return;
+  }
+  if (boton) ocupar(boton, false);
   if (error) {
     console.error(error);
     pintarError();
@@ -358,7 +335,7 @@ async function cargarCatalogo() {
     cargarCatalogo();
     return;
   }
-  pintarProductos(data || []);
+  await pintarProductos(data || []);
   const aviso = sincronizarCarrito(data || []);
   if (aviso) avisar(aviso);
 }
@@ -366,7 +343,11 @@ async function cargarCatalogo() {
 async function cargarOfertas() {
   const contenedor = document.querySelector("[data-ofertas]");
   if (!contenedor) return;
-  contenedor.replaceChildren(el("div", { class: "skeleton-card", "aria-hidden": "true" }, el("div", { class: "skeleton sk-media" }), el("div", { class: "skeleton sk-line" })));
+  if (!contenedor.querySelector(".skeleton")) {
+    contenedor.replaceChildren(tarjetaEsqueleto(), tarjetaEsqueleto(), tarjetaEsqueleto(), tarjetaEsqueleto());
+  }
+  marcarEsqueleto(contenedor);
+  contenedor.setAttribute("aria-busy", "true");
   const { data, error } = await supabase
     .from("productos")
     .select(COLUMNAS)
@@ -377,18 +358,18 @@ async function cargarOfertas() {
     .limit(12);
   if (error) {
     console.error(error);
-    contenedor.replaceChildren(el("p", { class: "hint" }, "No pudimos cargar las ofertas."));
-    vigilarArte();
+    await cruzar(contenedor, [estadoFallo("No pudimos cargar las ofertas.", () => cargarOfertas())]);
+    contenedor.setAttribute("aria-busy", "false");
     return;
   }
   const ofertas = (data || []).filter((producto) => descuento(producto.precio, producto.precio_anterior) > 0);
   if (!ofertas.length) {
-    contenedor.replaceChildren(el("p", { class: "hint" }, "Pronto verás ofertas en productos que no requieren fórmula."));
-    vigilarArte();
+    await cruzar(contenedor, [el("p", { class: "hint" }, "Pronto verás ofertas en productos que no requieren fórmula.")]);
+    contenedor.setAttribute("aria-busy", "false");
     return;
   }
-  contenedor.replaceChildren(...ofertas.map(tarjeta));
-  vigilarArte();
+  await cruzar(contenedor, ofertas.map(tarjeta));
+  contenedor.setAttribute("aria-busy", "false");
 }
 
 function asegurarFicha() {
@@ -511,17 +492,23 @@ export function iniciarTienda() {
     estado.orden = ORDENES.has(orden.value) ? orden.value : "nombre.asc";
     estado.pagina = 1;
     escribirUrl();
-    cargarCatalogo();
+    cargarCatalogo({ modo: "filtro" });
   });
   const pager = document.querySelector("[data-pager]");
   pager?.addEventListener("click", (evento) => {
     const boton = evento.target.closest("button");
     if (!boton || boton.disabled) return;
+    const y = window.scrollY;
     if (boton.hasAttribute("data-prev")) estado.pagina -= 1;
     if (boton.hasAttribute("data-next")) estado.pagina += 1;
     escribirUrl();
-    cargarCatalogo();
-    document.getElementById("catalogo")?.scrollIntoView({ block: "start", behavior: "auto" });
+    cargarCatalogo({ modo: "pagina", boton }).finally(() => {
+      const catalogo = document.getElementById("catalogo");
+      if (!catalogo) return;
+      const arriba = catalogo.getBoundingClientRect().top;
+      if (arriba < 0 || arriba > window.innerHeight * 0.4) catalogo.scrollIntoView({ block: "start", behavior: "auto" });
+      else window.scrollTo(0, y);
+    });
   });
   let timer = 0;
   const aplicar = (valor, desplazar) => {
@@ -530,7 +517,7 @@ export function iniciarTienda() {
     estado.q = q;
     estado.pagina = 1;
     escribirUrl();
-    cargarCatalogo();
+    cargarCatalogo({ modo: "filtro" });
     if (desplazar) document.getElementById("catalogo")?.scrollIntoView({ block: "start", behavior: "auto" });
   };
   document.addEventListener("reina:escribir", (evento) => {

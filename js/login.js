@@ -1,3 +1,4 @@
+import "./motion.js";
 import { supabase } from "./supabase.js";
 import { mensajeAuth } from "./format.js";
 import { esAdmin } from "./acceso.js";

@@ -6,6 +6,7 @@ import { dinero, fechaHora, mensajeError } from "./format.js";
 import { actualizarPedidoLocal, esToken, etiquetaEstado, interpretarPedido, leerPedidosLocal, PASOS } from "./pedidos.js";
 import { enlaceWhatsappPedido, montarPago, pagoRechazado, separarPago } from "./pago.js";
 import { iniciarLayout } from "./layout.js";
+import { bloqueEsqueleto, desdeEsqueleto, estadoFallo, marcarEsqueleto } from "./motion.js";
 
 let timer = 0;
 let cargando = false;
@@ -183,8 +184,19 @@ async function refrescar() {
   if (cargando || document.visibilityState === "hidden") return;
   cargando = true;
   const raiz = document.querySelector("[data-seguimiento]");
+  const primera = raiz && !raiz.dataset.visto;
+  if (primera) {
+    raiz.dataset.visto = "1";
+    if (!raiz.querySelector(".callout")) {
+      raiz.replaceChildren(bloqueEsqueleto(), bloqueEsqueleto());
+      marcarEsqueleto(raiz);
+      raiz.setAttribute("aria-busy", "true");
+    }
+  }
   const tokens = tokensVisibles();
   if (!tokens.length) {
+    if (primera && raiz.querySelector(".skeleton")) await desdeEsqueleto(raiz);
+    raiz.setAttribute("aria-busy", "false");
     raiz.replaceChildren(vacio("Cuando hagas un pedido, aquí verás su estado. También puedes abrir el enlace que te entregamos al confirmar."));
     cargando = false;
     return;
@@ -204,6 +216,8 @@ async function refrescar() {
       if (actual?.estado === "pendiente_pago" && await pagoRechazado(idPago)) pagoFallido = true;
     }
     if (pedidos.some((pedido) => pedido && !pedido.error && pedido.token === principal && pedido.estado === "pagado")) pagoListo = true;
+    if (primera && raiz.querySelector(".skeleton")) await desdeEsqueleto(raiz);
+    raiz.setAttribute("aria-busy", "false");
     raiz.replaceChildren();
     let alguno = false;
     pedidos.forEach((pedido) => {
@@ -212,7 +226,10 @@ async function refrescar() {
         return;
       }
       if (pedido.error) {
-        raiz.append(el("p", { class: "form-error", role: "alert" }, mensajeError(pedido.error)));
+        raiz.append(estadoFallo(mensajeError(pedido.error), () => {
+          raiz.dataset.visto = "";
+          refrescar();
+        }));
         return;
       }
       const destacado = pedido.token === principal || (!principal && !alguno);

@@ -7,6 +7,7 @@ import { dinero, esFormula, fechaHora, marcaVisible, mensajeError, parseNumero, 
 import { etiquetaEstado, interpretarPedido, prioridadEstado } from "./pedidos.js";
 import { enlaceAvisarCliente, separarPago } from "./pago.js";
 import { avisar } from "./layout.js";
+import { atenuar, bloqueEsqueleto, cruzar, desdeEsqueleto, estadoFallo, marcarEsqueleto, moverIndicador, prepararImagen, tarjetaEsqueleto } from "./motion.js";
 
 const POR_PAGINA = 30;
 let usuario = null;
@@ -143,6 +144,8 @@ function mostrarTab(nombre) {
     panel.hidden = panel.dataset.panel !== nombre;
   });
   history.replaceState(null, "", `#${nombre}`);
+  const tabs = document.querySelector(".tabs");
+  if (tabs) moverIndicador(tabs, tabs.querySelector(`[data-tab="${nombre}"]`));
   if (nombre === "pedidos") cargarPedidos(true);
   if (nombre === "productos") cargarProductos();
   if (nombre === "ajustes") cargarAjustes();
@@ -428,15 +431,24 @@ function pintarPedidos() {
 
 async function cargarPedidos(silencioso = false) {
   const lista = document.querySelector("[data-pedidos]");
-  if (!silencioso && lista && !pedidos.length) lista.replaceChildren(el("p", { class: "hint" }, "Cargando pedidos…"));
+  if (!silencioso && lista && !pedidos.length) {
+    lista.replaceChildren(bloqueEsqueleto(), bloqueEsqueleto(), bloqueEsqueleto());
+    marcarEsqueleto(lista);
+    lista.setAttribute("aria-busy", "true");
+  }
   try {
     const listaNueva = await leerPedidos();
     anunciarNuevos(listaNueva);
     anunciarPagados(listaNueva);
     pedidos = listaNueva;
+    if (lista?.querySelector(".skeleton")) await desdeEsqueleto(lista);
     pintarPedidos();
+    if (lista) lista.setAttribute("aria-busy", "false");
   } catch (error) {
-    if (lista) lista.replaceChildren(el("p", { class: "form-error", role: "alert" }, mensajeError(error)));
+    if (lista) {
+      lista.setAttribute("aria-busy", "false");
+      lista.replaceChildren(estadoFallo(mensajeError(error), () => cargarPedidos(false)));
+    }
   }
 }
 
@@ -651,7 +663,7 @@ function filaProducto(producto) {
   }, producto.activo ? "Activo" : "Inactivo");
   const media = el("div", { class: "admin-photo" });
   if (producto.imagen) {
-    const img = el("img", { src: producto.imagen, alt: "" });
+    const img = prepararImagen(el("img", { src: producto.imagen, alt: "", width: "72", height: "72" }));
     img.addEventListener("error", () => img.remove());
     media.append(img);
   }
@@ -672,13 +684,18 @@ function filaProducto(producto) {
 async function cargarProductos() {
   const lista = document.querySelector("[data-productos]");
   if (!lista) return;
+  await atenuar(lista);
+  lista.replaceChildren(tarjetaEsqueleto(), tarjetaEsqueleto(), tarjetaEsqueleto(), tarjetaEsqueleto());
+  marcarEsqueleto(lista);
+  lista.setAttribute("aria-busy", "true");
   const desde = (paginaProducto - 1) * POR_PAGINA;
   let consulta = supabase.from("productos").select("*", { count: "exact" });
   const q = textoProducto.trim().replace(/[%_,()]/g, " ").slice(0, 60);
   if (q) consulta = consulta.or(`nombre.ilike.%${q}%,marca.ilike.%${q}%,presentacion.ilike.%${q}%`);
   const { data, error, count } = await consulta.order("nombre", { ascending: true }).range(desde, desde + POR_PAGINA - 1);
   if (error) {
-    lista.replaceChildren(el("p", { class: "form-error", role: "alert" }, mensajeError(error)));
+    lista.setAttribute("aria-busy", "false");
+    lista.replaceChildren(estadoFallo(mensajeError(error), () => cargarProductos()));
     return;
   }
   productos = data || [];
@@ -689,7 +706,8 @@ async function cargarProductos() {
     cargarProductos();
     return;
   }
-  lista.replaceChildren(...(productos.length ? productos.map(filaProducto) : [el("p", { class: "empty-state" }, "No hay productos con esa búsqueda.")]));
+  lista.setAttribute("aria-busy", "false");
+  await cruzar(lista, productos.length ? productos.map(filaProducto) : [el("p", { class: "empty-state" }, "No hay productos con esa búsqueda.")]);
   const label = document.querySelector("[data-prod-page]");
   if (label) label.textContent = `Página ${paginaProducto} de ${paginas}`;
   document.querySelector("[data-prod-prev]").disabled = paginaProducto <= 1;

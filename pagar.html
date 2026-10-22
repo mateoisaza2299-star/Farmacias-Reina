@@ -27,6 +27,7 @@
   <link rel="icon" href="assets/logo/favicon-32.webp" type="image/webp" sizes="32x32">
   <link rel="apple-touch-icon" href="assets/logo/apple-touch-icon.png">
   <link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" as="image" href="assets/logo/logo-192.webp" type="image/webp" fetchpriority="high">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body data-page="pagar">
@@ -36,7 +37,7 @@
       <a class="logo" href="index.html">
         <picture>
           <source srcset="assets/logo/logo-192.webp" type="image/webp">
-          <img class="logo-img" src="assets/logo/logo-192.png" width="44" height="44" alt="">
+          <img class="logo-img" src="assets/logo/logo-192.png" width="44" height="44" alt="" fetchpriority="high" decoding="async">
         </picture>
         <span class="logo-text">
           <span class="logo-name">Droguerías Reina</span>
@@ -184,7 +185,7 @@
       <section>
         <picture>
           <source srcset="assets/logo/logo-192.webp" type="image/webp">
-          <img class="logo-img logo-img-lg" src="assets/logo/logo-192.png" width="64" height="64" alt="Droguerías Reina">
+          <img class="logo-img logo-img-lg" src="assets/logo/logo-192.png" width="64" height="64" alt="Droguerías Reina" loading="lazy" decoding="async">
         </picture>
         <p class="footer-brand">Droguerías Reina</p>
         <p data-field="slogan">Medicamentos de calidad a los mejores precios</p>
