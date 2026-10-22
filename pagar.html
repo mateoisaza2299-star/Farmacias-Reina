@@ -6,7 +6,7 @@
   <title>Pagar pedido | Droguerías Reina</title>
   <meta name="description" content="Confirma tu pedido en Droguerías Reina. Domicilios a Funza y Mosquera. El total final lo calcula la droguería.">
   <meta name="theme-color" content="#0077D5">
-  <meta name="robots" content="noindex,nofollow">
+  <meta name="robots" content="noindex, nofollow">
   <link rel="canonical" href="https://mateoisaza2299-star.github.io/Farmacias-Reina/pagar.html">
   <meta property="og:locale" content="es_CO">
   <meta property="og:type" content="website">
@@ -40,7 +40,7 @@
         </picture>
         <span class="logo-text">
           <span class="logo-name">Droguerías Reina</span>
-          <span class="logo-line"><span class="logo-place">Funza · Mosquera</span><span class="beta-badge" data-beta-badge aria-describedby="beta-aviso">BETA</span></span>
+          <span class="logo-line"><span class="logo-place">Funza · Mosquera</span></span>
         </span>
       </a>
       <form class="search" role="search" data-search-form>
@@ -54,7 +54,6 @@
         <span class="cart-count" data-cart-count hidden>0</span>
       </button>
     </div>
-    <p class="beta-bar" id="beta-aviso" data-beta-bar>Versión de prueba: los productos, precios e imágenes son de ejemplo</p>
     <p class="hours-badge" data-horario>Lunes a sábado de 8:00 am a 8:00 pm</p>
   </header>
   <div class="closed-banner" data-cerrado hidden>Por ahora no estamos recibiendo pedidos</div>
@@ -91,9 +90,16 @@
           <label>Indicaciones
             <textarea name="indicaciones" rows="3" maxlength="280" placeholder="Torre, apartamento o referencia"></textarea>
           </label>
+          <section class="pay-choice" data-pago-recibir>
+            <p>Forma de pago al recibir</p>
+            <label class="check"><input type="radio" name="pago" value="EFECTIVO" aria-describedby="pago-error"><span>Efectivo</span></label>
+            <label class="check"><input type="radio" name="pago" value="DATÁFONO" aria-describedby="pago-error"><span>Datáfono</span></label>
+            <label class="check"><input type="radio" name="pago" value="TRANSFERENCIA" aria-describedby="pago-error"><span>Transferencia</span></label>
+            <p class="field-error" id="pago-error" hidden></p>
+          </section>
           <section class="formula-box" data-formula hidden>
             <h2>Fórmula médica</h2>
-            <p>Tu pedido incluye productos que requieren fórmula. La revisa el regente de farmacia antes de habilitar el pago. Es un dato de salud y solo se usa para validar este pedido.</p>
+            <p>Tu pedido incluye productos que requieren fórmula. La revisa el regente de farmacia antes del despacho. Es un dato de salud y solo se usa para validar este pedido.</p>
             <label>Foto o PDF de la fórmula
               <input name="formula" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" aria-describedby="formula-error">
             </label>
@@ -125,6 +131,12 @@
         <p class="fine">El total definitivo lo calcula la droguería al confirmar el pedido. Aquí no se envían precios.</p>
       </aside>
     </div>
+    <section class="checkout-success" data-exito hidden>
+      <h2 data-exito-numero>Pedido recibido</h2>
+      <div class="summary" data-exito-resumen></div>
+      <a class="btn btn-whatsapp" data-exito-wa target="_blank" rel="noopener noreferrer">Enviar pedido por WhatsApp</a>
+      <a class="btn btn-ghost" data-exito-seguir href="seguimiento.html">Ver seguimiento</a>
+    </section>
   </main>
 
   <footer class="footer">
@@ -162,7 +174,6 @@
         <a href="seguimiento.html">Seguir un pedido</a>
       </section>
     </div>
-    <p class="footer-beta container" data-beta-pie>Versión de prueba: los productos, precios e imágenes son de ejemplo</p>
     <div class="container footer-base">
       <p>© <span data-year>2026</span> Droguerías Reina. Los medicamentos no sustituyen la valoración de un profesional de la salud.</p>
       <a class="admin-link" href="admin-login.html">Acceso interno</a>

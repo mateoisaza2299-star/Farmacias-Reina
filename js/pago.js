@@ -25,7 +25,7 @@ export function iniciarPago(pedido) {
   if (!datos.publicKey) {
     return {
       listo: false,
-      mensaje: "Pago en línea disponible muy pronto",
+      mensaje: "Falta configurar el pago en línea.",
       ...datos
     };
   }
@@ -34,6 +34,59 @@ export function iniciarPago(pedido) {
     mensaje: "Pago en línea listo para continuar.",
     ...datos
   };
+}
+
+const FORMAS = {
+  EFECTIVO: "Efectivo",
+  "DATÁFONO": "Datáfono",
+  TRANSFERENCIA: "Transferencia"
+};
+
+export function numeroWhatsapp() {
+  return soloDigitos(negocio.modoPrueba ? negocio.whatsappPrueba : negocio.whatsappPedidos);
+}
+
+export function enlaceWhatsapp(texto = "") {
+  const destino = numeroWhatsapp();
+  if (!destino) return "";
+  if (!texto) return `https://wa.me/${destino}`;
+  return `https://wa.me/${destino}?text=${encodeURIComponent(sinEnlaces(texto))}`;
+}
+
+export function separarPago(texto) {
+  const match = String(texto || "").match(/^Pago:\s*(EFECTIVO|DATÁFONO|TRANSFERENCIA)\.\s*([\s\S]*)$/);
+  if (!match) return { forma: "", notas: String(texto || "").trim() };
+  return { forma: FORMAS[match[1]] || match[1], notas: match[2].trim() };
+}
+
+export function mensajePedidoWhatsapp(pedido) {
+  const separado = separarPago(pedido?.indicaciones);
+  const forma = pedido?.formaPago || separado.forma;
+  const notas = pedido?.notas != null ? pedido.notas : separado.notas;
+  const numero = pedido?.numero ? `#${pedido.numero}` : "";
+  const titulo = numero ? `🛒 Pedido ${numero} · ${negocio.nombre}` : `🛒 Pedido · ${negocio.nombre}`;
+  const items = Array.isArray(pedido?.items) ? pedido.items : [];
+  const lineasPedido = items.map((item) => {
+    const presentacion = item.presentacion ? ` (${item.presentacion})` : "";
+    const cantidad = Number(item.cantidad) || 0;
+    const precio = item.precio == null || item.precio === "" ? "" : ` ${dinero(Number(item.precio) * cantidad)}`;
+    return `${item.nombre}${presentacion} x ${cantidad}${precio}`;
+  });
+  const partes = [
+    titulo,
+    ...lineasPedido,
+    `Subtotal: ${dinero(pedido?.subtotal)}`,
+    `Domicilio: ${dinero(pedido?.domicilio)}`,
+    `Total: ${dinero(pedido?.total)}`,
+    `Nombre: ${pedido?.nombre || ""}`,
+    `Celular: ${pedido?.telefono || ""}`,
+    `Dirección: ${pedido?.direccion || ""}`,
+    `Barrio: ${pedido?.barrio || ""}`,
+    `Indicaciones: ${notas || ""}`,
+    `Forma de pago: ${forma || ""}`
+  ];
+  if (pedido?.formula || pedido?.formula_path) partes.push("Fórmula médica adjunta en la página");
+  return sinEnlaces(partes.join("\n"));
 }
 
 function sinEnlaces(texto) {
@@ -55,18 +108,19 @@ export function resumenWhatsapp(pedido) {
 }
 
 export function enlaceWhatsappPedido(pedido) {
-  if (negocio.beta) return "";
-  const destino = soloDigitos(negocio.whatsapp);
-  if (!destino) return "";
-  return `https://wa.me/${destino}?text=${encodeURIComponent(resumenWhatsapp(pedido))}`;
+  const texto = negocio.pagoEnLinea ? resumenWhatsapp(pedido) : mensajePedidoWhatsapp(pedido);
+  return enlaceWhatsapp(texto);
 }
 
 export function mensajeAviso(pedido) {
   const numero = pedido?.numero ? `N.º ${pedido.numero}` : "tu pedido";
   const saludo = pedido?.nombre ? `Hola ${pedido.nombre}.` : "Hola.";
+  const pendiente = negocio.pagoEnLinea
+    ? `${saludo} Tu pedido ${numero} en ${negocio.nombre} fue aprobado y está pendiente de pago.`
+    : `${saludo} Tu pedido ${numero} en ${negocio.nombre} está por despachar. El pago es al recibir.`;
   const textos = {
     revision: `${saludo} Recibimos tu pedido ${numero} en ${negocio.nombre}. Quedó en revisión de la fórmula médica.`,
-    pendiente_pago: `${saludo} Tu pedido ${numero} en ${negocio.nombre} fue aprobado y está pendiente de pago.`,
+    pendiente_pago: pendiente,
     pagado: `${saludo} Confirmamos el pago de tu pedido ${numero} en ${negocio.nombre}.`,
     despachado: `${saludo} Tu pedido ${numero} de ${negocio.nombre} ya fue despachado.`,
     entregado: `${saludo} Tu pedido ${numero} de ${negocio.nombre} fue entregado. Gracias por tu compra.`,
@@ -77,11 +131,12 @@ export function mensajeAviso(pedido) {
 }
 
 export function enlaceAvisarCliente(pedido) {
-  if (negocio.beta) return "";
+  const texto = mensajeAviso(pedido);
+  if (negocio.modoPrueba) return enlaceWhatsapp(texto);
   let destino = soloDigitos(pedido?.telefono || "");
   if (destino.length === 10) destino = `57${destino}`;
   if (!destino) return "";
-  return `https://wa.me/${destino}?text=${encodeURIComponent(mensajeAviso(pedido))}`;
+  return `https://wa.me/${destino}?text=${encodeURIComponent(texto)}`;
 }
 
 export function montarPago(contenedor, pedido) {
@@ -96,16 +151,6 @@ export function montarPago(contenedor, pedido) {
   nota.className = "pay-note";
   nota.textContent = resultado.mensaje;
   contenedor.append(nota);
-  if (negocio.beta) {
-    const boton = document.createElement("button");
-    boton.type = "button";
-    boton.className = "btn btn-whatsapp";
-    boton.disabled = true;
-    boton.textContent = "Disponible muy pronto";
-    boton.setAttribute("aria-label", "Enviar pedido, disponible muy pronto");
-    contenedor.append(boton);
-    return resultado;
-  }
   const enlace = enlaceWhatsappPedido(pedido);
   if (enlace) {
     const boton = document.createElement("a");
@@ -113,7 +158,7 @@ export function montarPago(contenedor, pedido) {
     boton.href = enlace;
     boton.target = "_blank";
     boton.rel = "noopener noreferrer";
-    boton.textContent = "Enviar pedido";
+    boton.textContent = "Enviar pedido por WhatsApp";
     contenedor.append(boton);
   }
   return resultado;

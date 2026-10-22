@@ -27,13 +27,57 @@ function pasoEstado(estado) {
   return PASOS.findIndex(([clave]) => clave === estado);
 }
 
-function lineaEstados(estado) {
-  const actual = pasoEstado(estado);
-  const excepcional = estado === "rechazado" || estado === "cancelado";
+function pasosRecibir(pedido) {
+  const formula = Boolean(pedido.formula_path) || pedido.estado === "revision";
+  const pasos = [["recibido", "Recibido"]];
+  if (formula) pasos.push(["revision", "En revisión"]);
+  pasos.push(["camino", "En camino"], ["entregado", "Entregado"]);
+  return pasos;
+}
+
+function claseRecibir(pedido, clave, indice, pasos) {
+  const estado = pedido.estado;
+  if (estado === "rechazado" || estado === "cancelado") return "";
+  const orden = pasos.map(([id]) => id);
+  if (estado === "revision") {
+    const actual = orden.indexOf("revision");
+    if (indice < actual) return "is-done";
+    if (indice === actual) return "is-now";
+    return "";
+  }
+  if (estado === "pendiente_pago" || estado === "pagado") {
+    if (orden.includes("revision")) return indice <= orden.indexOf("revision") ? "is-done" : "";
+    return clave === "recibido" ? "is-now" : "";
+  }
+  if (estado === "despachado") {
+    const actual = orden.indexOf("camino");
+    if (indice < actual) return "is-done";
+    if (indice === actual) return "is-now";
+    return "";
+  }
+  if (estado === "entregado") {
+    const actual = orden.indexOf("entregado");
+    if (indice < actual) return "is-done";
+    if (indice === actual) return "is-now";
+    return "";
+  }
+  return "";
+}
+
+function lineaEstados(pedido) {
+  const excepcional = pedido.estado === "rechazado" || pedido.estado === "cancelado";
   const lista = el("ol", { class: `steps ${excepcional ? "is-stopped" : ""}` });
-  PASOS.forEach(([clave, etiqueta], indice) => {
-    const clase = excepcional ? "" : indice < actual ? "is-done" : indice === actual ? "is-now" : "";
-    lista.append(el("li", { class: clase }, el("span", { class: "step-dot", "aria-hidden": "true" }), el("span", {}, etiqueta)));
+  if (negocio.pagoEnLinea) {
+    const actual = pasoEstado(pedido.estado);
+    PASOS.forEach(([, etiqueta], indice) => {
+      const clase = excepcional ? "" : indice < actual ? "is-done" : indice === actual ? "is-now" : "";
+      lista.append(el("li", { class: clase }, el("span", { class: "step-dot", "aria-hidden": "true" }), el("span", {}, etiqueta)));
+    });
+    return lista;
+  }
+  const pasos = pasosRecibir(pedido);
+  pasos.forEach(([clave, etiqueta], indice) => {
+    lista.append(el("li", { class: claseRecibir(pedido, clave, indice, pasos) }, el("span", { class: "step-dot", "aria-hidden": "true" }), el("span", {}, etiqueta)));
   });
   return lista;
 }
@@ -48,7 +92,12 @@ function tarjeta(pedido, destacado) {
     )
   );
   if (pedido.created_at) articulo.append(el("p", { class: "hint" }, fechaHora(pedido.created_at)));
-  if (pedido.estado === "revision") articulo.append(el("p", { class: "callout" }, MENSAJE_REVISION));
+  if (pedido.estado === "revision") {
+    const aviso = negocio.pagoEnLinea
+      ? MENSAJE_REVISION
+      : "Tu pedido quedó en revisión. Nuestro regente validará la fórmula antes de despacharlo.";
+    articulo.append(el("p", { class: "callout" }, aviso));
+  }
   if (pedido.estado === "rechazado") articulo.append(el("p", { class: "callout callout-warn" }, "No pudimos validar la fórmula de este pedido. Escríbenos y te contamos cómo corregirlo."));
   if (pedido.estado === "cancelado") articulo.append(el("p", { class: "callout callout-warn" }, "Este pedido fue cancelado."));
   if (pedido.items?.length) {
@@ -58,18 +107,17 @@ function tarjeta(pedido, destacado) {
     ))));
   }
   articulo.append(el("p", { class: "track-total" }, el("span", {}, "Total"), el("strong", {}, pedido.total == null ? "Por confirmar" : dinero(pedido.total))));
-  articulo.append(lineaEstados(pedido.estado));
-  if (pedido.estado === "pendiente_pago") {
+  articulo.append(lineaEstados(pedido));
+  if (negocio.pagoEnLinea && pedido.estado === "pendiente_pago") {
     const pago = el("div", { class: "pay-box", "data-pago": "true" });
     articulo.append(pago);
     montarPago(pago, pedido);
-  } else if (negocio.beta) {
-    const boton = el("button", { type: "button", class: "btn btn-whatsapp", disabled: true }, "Disponible muy pronto");
-    boton.setAttribute("aria-label", "Enviar pedido, disponible muy pronto");
-    articulo.append(boton);
   } else {
     const enlace = enlaceWhatsappPedido(pedido);
-    if (enlace) articulo.append(el("a", { class: "btn btn-whatsapp", href: enlace, target: "_blank", rel: "noopener noreferrer" }, "Enviar pedido"));
+    const etiqueta = !negocio.pagoEnLinea && (pedido.estado === "pendiente_pago" || pedido.estado === "revision")
+      ? "Enviar pedido por WhatsApp"
+      : "Escribir por WhatsApp";
+    if (enlace) articulo.append(el("a", { class: "btn btn-whatsapp", href: enlace, target: "_blank", rel: "noopener noreferrer" }, etiqueta));
   }
   return articulo;
 }

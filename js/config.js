@@ -1,6 +1,9 @@
 export const negocio = {
   nombre: "Droguerías Reina",
-  beta: true,
+  modoPrueba: true,
+  pagoEnLinea: false,
+  whatsappPrueba: "573108813365",
+  whatsappPedidos: "573003664793",
   slogan: "Medicamentos de calidad a los mejores precios",
   razonSocial: "Por confirmar",
   nit: "Por confirmar",
@@ -39,7 +42,3 @@ export const AVISO_CERRADO = "Por ahora no estamos recibiendo pedidos";
 export const AVISO_FORMULA = "Los medicamentos que requieren fórmula médica solo se entregan con la fórmula vigente. Si tienes dudas, consulta a tu médico o a nuestro regente de farmacia.";
 
 export const MENSAJE_REVISION = "Tu pedido quedó en revisión. Nuestro regente validará la fórmula y te habilitaremos el pago.";
-
-export const AVISO_BETA = "Versión de prueba: los productos, precios e imágenes son de ejemplo";
-
-export const TEXTO_PRONTO = "Disponible muy pronto";

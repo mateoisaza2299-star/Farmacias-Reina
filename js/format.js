@@ -124,11 +124,6 @@ export function estadoHorario(fecha = new Date()) {
   if (dia !== "Sun" && minutos >= abre && minutos < cierra) {
     return { abierto: true, texto: "Abierto ahora" };
   }
-  if (dia === "Sun" || (dia === "Sat" && minutos >= cierra)) {
-    return { abierto: false, texto: "Cerrado, abrimos el lunes a las 8:00 am" };
-  }
-  if (minutos < abre) {
-    return { abierto: false, texto: "Cerrado, abrimos hoy a las 8:00 am" };
-  }
-  return { abierto: false, texto: "Cerrado, abrimos mañana a las 8:00 am" };
+  if (dia === "Sun") return { abierto: false, texto: "Abrimos el lunes a las 8:00 am." };
+  return { abierto: false, texto: "Ahora estamos cerrados. Atendemos tu pedido cuando abramos." };
 }

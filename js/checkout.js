@@ -1,7 +1,9 @@
+import { negocio } from "./config.js";
 import { leerConfig } from "./datos.js";
 import { celularValido, dinero, mensajeError } from "./format.js";
 import { itemsParaPedido, resumenCarrito, vaciarCarrito } from "./cart.js";
 import { guardarPedidoLocal } from "./pedidos.js";
+import { enlaceWhatsappPedido } from "./pago.js";
 import { supabase } from "./supabase.js";
 import { el } from "./dom.js";
 import { iniciarLayout } from "./layout.js";
@@ -16,8 +18,15 @@ const TIPOS = {
 const EXTENSIONES = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", pdf: "application/pdf" };
 const LIMITE = 5 * 1024 * 1024;
 
+const FORMAS = {
+  EFECTIVO: "Efectivo",
+  "DATÁFONO": "Datáfono",
+  TRANSFERENCIA: "Transferencia"
+};
+
 let configActual = { domicilio: 0, pedido_minimo: 0, abierto: true };
 let enviando = false;
+let confirmado = false;
 
 function resumen() {
   return resumenCarrito(configActual.domicilio, configActual.pedido_minimo);
@@ -50,6 +59,7 @@ function tipoArchivo(archivo) {
 }
 
 function pintarResumen() {
+  if (confirmado) return;
   const datos = resumen();
   const lista = document.querySelector("[data-resumen-items]");
   const vacio = document.querySelector("[data-vacio]");
@@ -114,6 +124,7 @@ function validarFormulario(datos) {
     marcar(archivo, "");
     marcar(salud, "");
   }
+  if (!negocio.pagoEnLinea) ok = validarPago() && ok;
   if (!ok) mostrarError("Revisa los campos marcados para continuar.");
   else mostrarError("");
   if (!ok) {
@@ -121,6 +132,69 @@ function validarFormulario(datos) {
     primero?.focus();
   }
   return ok;
+}
+
+function validarPago() {
+  const elegido = document.querySelector("input[name='pago']:checked");
+  const ayuda = document.getElementById("pago-error");
+  document.querySelectorAll("input[name='pago']").forEach((radio) => {
+    radio.setAttribute("aria-invalid", elegido ? "false" : "true");
+  });
+  if (ayuda) {
+    ayuda.hidden = Boolean(elegido);
+    ayuda.textContent = elegido ? "" : "Elige cómo vas a pagar al recibir.";
+  }
+  return Boolean(elegido);
+}
+
+function filaResumen(etiqueta, valor) {
+  return el("div", { class: "sum-row" }, el("span", {}, etiqueta), el("strong", {}, valor));
+}
+
+function mostrarExito(pedido) {
+  const caja = document.querySelector("[data-checkout-box]");
+  const vacio = document.querySelector("[data-vacio]");
+  const lead = document.querySelector(".hero-lead");
+  const titulo = document.querySelector("main h1");
+  const exito = document.querySelector("[data-exito]");
+  if (caja) caja.hidden = true;
+  if (vacio) vacio.hidden = true;
+  if (lead) lead.hidden = true;
+  if (titulo) titulo.textContent = "Pedido recibido";
+  const numero = document.querySelector("[data-exito-numero]");
+  if (numero) numero.textContent = pedido.numero ? `Pedido #${pedido.numero}` : "Pedido recibido";
+  const resumenNodo = document.querySelector("[data-exito-resumen]");
+  if (resumenNodo) {
+    const items = Array.isArray(pedido.items) ? pedido.items : [];
+    resumenNodo.replaceChildren(
+      el("h2", {}, "Resumen"),
+      el("ul", {}, ...items.map((item) => el("li", {},
+        el("span", {}, `${item.nombre}${item.presentacion ? ` · ${item.presentacion}` : ""} × ${item.cantidad}`),
+        el("strong", {}, dinero(Number(item.precio) * Number(item.cantidad)))
+      ))),
+      filaResumen("Subtotal", dinero(pedido.subtotal)),
+      filaResumen("Domicilio", dinero(pedido.domicilio)),
+      el("div", { class: "sum-row sum-total" }, el("span", {}, "Total"), el("strong", {}, dinero(pedido.total))),
+      el("p", {}, `Nombre: ${pedido.nombre || ""}`),
+      el("p", {}, `Celular: ${pedido.telefono || ""}`),
+      el("p", {}, `Dirección: ${pedido.direccion || ""}`),
+      el("p", {}, `Barrio: ${pedido.barrio || ""}`),
+      el("p", {}, `Indicaciones: ${pedido.notas || ""}`),
+      el("p", {}, `Forma de pago: ${pedido.formaPago || ""}`),
+      pedido.formula ? el("p", {}, "Fórmula médica adjunta en la página") : null
+    );
+  }
+  const wa = document.querySelector("[data-exito-wa]");
+  const href = enlaceWhatsappPedido(pedido);
+  if (wa && href) wa.href = href;
+  const seguir = document.querySelector("[data-exito-seguir]");
+  if (seguir && pedido.token) seguir.href = `seguimiento.html?pedido=${encodeURIComponent(pedido.token)}`;
+  if (exito) exito.hidden = false;
+}
+
+function prepararPago() {
+  const bloque = document.querySelector("[data-pago-recibir]");
+  if (bloque) bloque.hidden = negocio.pagoEnLinea === true;
 }
 
 async function subirFormula(archivo) {
@@ -148,6 +222,9 @@ async function enviar(evento) {
     return;
   }
   if (!validarFormulario(datos)) return;
+  const forma = negocio.pagoEnLinea ? "" : (document.querySelector("input[name='pago']:checked")?.value || "");
+  const notas = campo("indicaciones").value.trim();
+  const indicaciones = forma ? `Pago: ${forma}. ${notas}`.trim() : notas;
   enviando = true;
   pintarResumen();
   let ruta = null;
@@ -159,21 +236,46 @@ async function enviar(evento) {
       p_telefono: campo("telefono").value.replace(/\D/g, ""),
       p_direccion: campo("direccion").value.trim(),
       p_barrio: campo("barrio").value.trim(),
-      p_indicaciones: campo("indicaciones").value.trim(),
+      p_indicaciones: indicaciones,
       p_formula_path: ruta
     });
     if (error) throw error;
     const pedido = data && typeof data === "object" && !Array.isArray(data) ? data : { token: data };
     const token = pedido.token || pedido.p_token || (Array.isArray(data) ? data[0]?.token : null) || (typeof data === "string" ? data : null);
     if (!token) throw new Error("No recibimos el número de seguimiento.");
+    const numero = pedido.numero ?? pedido.numero_pedido ?? null;
+    const estado = pedido.estado || (datos.requiereFormula ? "revision" : "pendiente_pago");
     guardarPedidoLocal({
       token,
-      numero: pedido.numero ?? pedido.numero_pedido ?? null,
-      estado: pedido.estado || "",
+      numero,
+      estado,
       creado: new Date().toISOString()
     });
+    const armado = {
+      token,
+      numero,
+      estado,
+      items: datos.items.map((item) => ({ ...item })),
+      subtotal: datos.subtotal,
+      domicilio: datos.domicilio,
+      total: datos.total,
+      nombre: campo("nombre").value.trim(),
+      telefono: campo("telefono").value.replace(/\D/g, ""),
+      direccion: campo("direccion").value.trim(),
+      barrio: campo("barrio").value.trim(),
+      indicaciones,
+      notas,
+      formaPago: FORMAS[forma] || "",
+      formula: Boolean(ruta),
+      formula_path: ruta
+    };
+    confirmado = true;
     vaciarCarrito();
-    location.href = `seguimiento.html?pedido=${encodeURIComponent(token)}`;
+    if (negocio.pagoEnLinea) {
+      location.href = `seguimiento.html?pedido=${encodeURIComponent(token)}`;
+      return;
+    }
+    mostrarExito(armado);
   } catch (error) {
     if (ruta) supabase.storage.from("formulas").remove([ruta]).catch(() => {});
     mostrarError(mensajeError(error));
@@ -200,6 +302,7 @@ function escucharArchivo() {
 }
 
 function iniciarCheckout() {
+  prepararPago();
   document.querySelector("#pedido")?.addEventListener("submit", enviar);
   escucharArchivo();
   document.addEventListener("reina:carrito", pintarResumen);

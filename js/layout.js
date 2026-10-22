@@ -1,7 +1,8 @@
-import { negocio, categorias, AVISO_CERRADO, AVISO_BETA, TEXTO_PRONTO } from "./config.js";
+import { negocio, categorias, AVISO_CERRADO } from "./config.js";
 import { leerConfig } from "./datos.js";
 import { contarCarrito, fijarCantidad, quitarProducto, resumenCarrito } from "./cart.js";
-import { dinero, estadoHorario, marcaVisible, soloDigitos } from "./format.js";
+import { dinero, estadoHorario, marcaVisible } from "./format.js";
+import { enlaceWhatsapp, numeroWhatsapp } from "./pago.js";
 import { el } from "./dom.js";
 import { icono } from "./icons.js";
 
@@ -101,15 +102,16 @@ function llenarNegocio() {
   if (tel) {
     const visible = `Celular ${negocio.telefono}`;
     tel.classList.remove("pendiente");
-    if (negocio.beta) tel.textContent = visible;
-    else tel.replaceChildren(el("a", { href: `tel:${negocio.telefonoE164}` }, visible));
+    tel.replaceChildren(el("a", { href: `tel:${negocio.telefonoE164}` }, visible));
   }
   const wa = document.querySelector("[data-field='whatsapp']");
   if (wa) {
     const visible = `WhatsApp ${negocio.whatsappVisible}`;
     wa.classList.remove("pendiente");
-    if (negocio.beta) wa.textContent = visible;
-    else wa.replaceChildren(el("a", { href: `https://wa.me/${soloDigitos(negocio.whatsapp)}`, target: "_blank", rel: "noopener noreferrer" }, visible));
+    const destino = numeroWhatsapp();
+    wa.replaceChildren();
+    if (destino) wa.append(el("a", { href: enlaceWhatsapp("Hola. Quiero información de Droguerías Reina."), target: "_blank", rel: "noopener noreferrer" }, visible));
+    else wa.textContent = visible;
   }
   const ig = document.querySelector("[data-field='instagram']");
   if (ig) {
@@ -460,18 +462,12 @@ function cabeceraFija() {
   window.addEventListener("scroll", aplicar, { passive: true });
 }
 
-function pintarBeta() {
-  const beta = negocio.beta === true;
-  document.querySelectorAll("[data-beta-badge], [data-beta-bar], [data-beta-pie]").forEach((nodo) => {
-    if (beta) {
-      nodo.hidden = false;
-      if (nodo.hasAttribute("data-beta-bar") || nodo.hasAttribute("data-beta-pie")) nodo.textContent = AVISO_BETA;
-    } else nodo.remove();
-  });
+function aplicarRobots() {
   const meta = document.querySelector("meta[name='robots']");
-  if (meta && document.body.dataset.page !== "admin" && document.body.dataset.page !== "login") {
-    meta.content = beta ? "noindex,nofollow" : "index,follow";
-  }
+  if (!meta) return;
+  const pagina = document.body?.dataset.page || "";
+  const admin = pagina === "admin" || pagina === "login";
+  meta.content = admin || negocio.modoPrueba ? "noindex, nofollow" : "index, follow";
 }
 
 function pintarHorario() {
@@ -485,25 +481,19 @@ function pintarHorario() {
 
 function prepararWhatsapp() {
   document.querySelectorAll("[data-wa]").forEach((nodo) => {
-    const accion = nodo.dataset.wa === "pedido" ? "Enviar pedido" : nodo.dataset.wa === "consultar" ? "Consultar" : "Atención";
-    if (negocio.beta) {
-      const boton = nodo.tagName === "BUTTON" ? nodo : el("button", { type: "button", class: nodo.className });
-      boton.disabled = true;
-      boton.textContent = TEXTO_PRONTO;
-      boton.setAttribute("aria-label", `${accion}, disponible muy pronto`);
-      if (boton !== nodo) nodo.replaceWith(boton);
-      return;
-    }
+    const accion = nodo.dataset.wa === "pedido" ? "Enviar pedido por WhatsApp" : nodo.dataset.wa === "consultar" ? "Consultar" : "Atención";
     const textos = {
       atencion: `Hola. Quiero atención en ${negocio.nombre}.`,
       pedido: `Hola. Quiero información de mi pedido en ${negocio.nombre}.`,
       consultar: `Hola. Quiero consultar un producto en ${negocio.nombre}.`
     };
-    const url = `https://wa.me/${soloDigitos(negocio.whatsapp)}?text=${encodeURIComponent(textos[nodo.dataset.wa] || textos.atencion)}`;
+    const url = enlaceWhatsapp(textos[nodo.dataset.wa] || textos.atencion);
+    nodo.disabled = false;
     nodo.textContent = accion;
+    nodo.setAttribute("aria-label", accion);
     nodo.addEventListener("click", (evento) => {
       evento.preventDefault();
-      window.open(url, "_blank", "noopener");
+      if (url) window.open(url, "_blank", "noopener");
     });
   });
 }
@@ -538,7 +528,7 @@ function cargarMapas() {
 export function iniciarLayout() {
   medirHeader();
   llenarNegocio();
-  pintarBeta();
+  aplicarRobots();
   pintarHorario();
   prepararWhatsapp();
   cargarMapas();

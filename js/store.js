@@ -1,8 +1,9 @@
 import { supabase } from "./supabase.js";
-import { categorias, negocio } from "./config.js";
+import { categorias } from "./config.js";
 import { el } from "./dom.js";
 import { icono } from "./icons.js";
 import { descuento, dinero, esFormula, marcaVisible, sanearBusqueda } from "./format.js";
+import { enlaceWhatsapp } from "./pago.js";
 import { agregarProducto, sincronizarCarrito } from "./cart.js";
 import { avisar, cerrarCarrito, volarAlCarrito } from "./layout.js";
 
@@ -200,20 +201,17 @@ function accionProducto(producto, imagen) {
   const formula = esFormula(producto.requiere_formula);
   const agotado = Number(producto.stock) <= 0;
   if (formula) {
+    const presentacion = producto.presentacion ? ` (${producto.presentacion})` : "";
+    const texto = `Hola, quiero consultar por ${producto.nombre}${presentacion}. Tengo la fórmula médica.`;
     const boton = el("button", {
       type: "button",
       class: "btn btn-consult",
-      disabled: negocio.beta === true
-    }, negocio.beta ? "Disponible muy pronto" : "Consultar");
-    boton.setAttribute("aria-label", negocio.beta ? `Consultar ${producto.nombre}. Disponible muy pronto` : `Consultar ${producto.nombre}`);
-    if (negocio.beta !== true) {
-      boton.addEventListener("click", () => {
-        const texto = `Hola. Quiero consultar ${producto.nombre}${producto.presentacion ? `, ${producto.presentacion}` : ""} en ${negocio.nombre}.`;
-        const destino = String(negocio.whatsapp || "").replace(/\D/g, "");
-        if (!destino) return;
-        window.open(`https://wa.me/${destino}?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
-      });
-    }
+      "aria-label": `Consultar ${producto.nombre}`
+    }, "Consultar");
+    boton.addEventListener("click", () => {
+      const url = enlaceWhatsapp(texto);
+      if (url) window.open(url, "_blank", "noopener");
+    });
     return boton;
   }
   return el("button", {

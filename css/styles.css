@@ -154,27 +154,6 @@ html.scroll-lock, html.scroll-lock body { overflow: hidden; }
   object-fit: cover;
 }
 .logo picture { display: flex; }
-.beta-badge {
-  flex: 0 0 auto;
-  padding: 1px 6px;
-  border-radius: 999px;
-  border: 1px solid #b9ddf5;
-  background: var(--blue-soft);
-  color: var(--blue-ink);
-  font-size: 0.62rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  line-height: 1.55;
-}
-.beta-bar {
-  margin: 0;
-  padding: 6px 16px 2px;
-  text-align: center;
-  color: var(--blue-ink);
-  background: var(--blue-soft);
-  font-size: 0.78rem;
-  font-weight: 700;
-}
 .hours-badge {
   display: flex;
   align-items: center;
@@ -720,6 +699,11 @@ html.scroll-lock, html.scroll-lock body { overflow: hidden; }
 .field-error, .form-error { color: var(--danger); font-weight: 650; }
 .formula-box { display: grid; gap: 10px; padding: 14px; border-radius: 16px; background: var(--amber-bg); border: 1px solid #fde68a; }
 .pay-box, .pay-note { display: grid; gap: 10px; }
+.pay-choice { display: grid; gap: 8px; }
+.pay-choice > p:first-child { font-weight: 700; }
+.checkout-success { display: grid; gap: 14px; max-width: 720px; }
+.checkout-success .summary { order: 0; position: static; }
+.checkout-success .btn-whatsapp { min-height: 52px; }
 .track-card.is-main { box-shadow: 0 16px 36px rgba(0, 119, 213, 0.12); }
 .steps { list-style: none; display: grid; gap: 8px; margin-top: 8px; }
 .steps li { display: flex; align-items: center; gap: 8px; color: var(--muted); }
@@ -738,7 +722,6 @@ html.scroll-lock, html.scroll-lock body { overflow: hidden; }
 .footer p, .footer a { display: block; margin: 4px 0; color: var(--muted); }
 .footer a { color: var(--blue-ink); text-decoration: underline; text-underline-offset: 2px; }
 .footer-brand { color: var(--ink); font-weight: 800; font-size: 1.1rem; }
-.footer-beta { font-size: 0.78rem; }
 .footer-base { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
 .admin-link { font-size: 0.82rem; color: var(--muted) !important; }
 .prose { display: grid; gap: 12px; }
@@ -929,10 +912,7 @@ input.is-saved { box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.25); }
   .product-glint,
   .product:hover .product-glint { animation: none; }
   .product:hover .product-art { transform: none; }
-  .product-glint,
-  .beta-tip { opacity: 0; transform: none; }
-  .beta-badge:hover .beta-tip,
-  .logo:focus-visible .beta-tip { opacity: 1; }
+  .product-glint { opacity: 0; transform: none; }
 }
 .pendiente { color: var(--muted); }
 .btn.btn-add,

@@ -1,3 +1,5 @@
+import { negocio } from "./config.js";
+
 const LLAVE = "pedidos_reina";
 
 export const PASOS = [
@@ -19,6 +21,7 @@ const ETIQUETAS = {
 };
 
 export function etiquetaEstado(estado) {
+  if (estado === "pendiente_pago" && negocio.pagoEnLinea === false) return "Por despachar · pago al recibir";
   if (ETIQUETAS[estado]) return ETIQUETAS[estado];
   if (!estado) return "Estado desconocido";
   return String(estado).replaceAll("_", " ");

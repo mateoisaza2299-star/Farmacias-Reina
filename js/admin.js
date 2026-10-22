@@ -5,7 +5,7 @@ import { el } from "./dom.js";
 import { icono, marcaLogo } from "./icons.js";
 import { dinero, esFormula, fechaHora, marcaVisible, mensajeError, parseNumero, soloDigitos } from "./format.js";
 import { etiquetaEstado, interpretarPedido, prioridadEstado } from "./pedidos.js";
-import { enlaceAvisarCliente } from "./pago.js";
+import { enlaceAvisarCliente, separarPago } from "./pago.js";
 import { avisar } from "./layout.js";
 
 const POR_PAGINA = 30;
@@ -25,8 +25,8 @@ let poll = 0;
 const ESTADOS_FILTRO = [
   ["activos", "En curso"],
   ["revision", "En revisión"],
-  ["pendiente_pago", "Pendiente de pago"],
-  ["pagado", "Pagado"],
+  ["pendiente_pago", negocio.pagoEnLinea ? "Pendiente de pago" : "Por despachar"],
+  ...(negocio.pagoEnLinea ? [["pagado", "Pagado"]] : []),
   ["despachado", "Despachado"],
   ["entregado", "Entregado"],
   ["rechazado", "Rechazado"],
@@ -55,8 +55,11 @@ function normalizarCategoria(valor) {
   return exacta ? exacta.id : limpio;
 }
 
-function esSi(valor) {
-  return ["si", "sí", "true", "1", "x", "yes", "verdadero"].includes(String(valor || "").trim().toLowerCase());
+function valorFormula(valor) {
+  const clave = String(valor ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (clave === "si" || clave === "true" || clave === "1") return true;
+  if (clave === "no" || clave === "false" || clave === "0" || clave === "") return false;
+  return null;
 }
 
 function parseCSV(texto) {
@@ -109,13 +112,14 @@ function prepararFila(row) {
   const categoria = normalizarCategoria(row.categoria || "");
   const precio = parseNumero(row.precio);
   const stock = parseNumero(row.stock);
-  const requiere = esSi(row.requiere_formula);
+  const requiere = valorFormula(row.requiere_formula);
   const errores = [];
   if (!nombre) errores.push("falta el nombre");
   if (!presentacion) errores.push("falta la presentación");
   if (!categoria) errores.push("falta la categoría");
   if (!Number.isFinite(precio) || precio < 0) errores.push("precio inválido");
   if (!Number.isInteger(stock) || stock < 0) errores.push("stock inválido");
+  if (requiere == null) errores.push("requiere_formula inválido");
   return {
     linea: row._linea,
     nombre,
@@ -124,7 +128,7 @@ function prepararFila(row) {
     categoria,
     precio,
     stock,
-    requiere_formula: requiere,
+    requiere_formula: requiere === true,
     errores
   };
 }
@@ -318,9 +322,14 @@ async function avisarCliente(pedido) {
   await cargarPedidos(true);
 }
 
-function tarjetaPedido(pedido) {
+function contactoPedido(pedido) {
   const telefono = soloDigitos(pedido.telefono);
-  const whats = negocio.beta ? "" : telefono.length === 10 ? `https://wa.me/57${telefono}` : telefono ? `https://wa.me/${telefono}` : "";
+  if (negocio.modoPrueba || !telefono) return el("p", {}, pedido.telefono || "Sin celular");
+  const whats = telefono.length === 10 ? `https://wa.me/57${telefono}` : `https://wa.me/${telefono}`;
+  return el("a", { href: whats, target: "_blank", rel: "noopener noreferrer" }, pedido.telefono);
+}
+
+function tarjetaPedido(pedido) {
   const terminal = ["entregado", "cancelado", "rechazado"].includes(pedido.estado);
   const acciones = [];
   if (pedido.formula_path) acciones.push(el("button", { type: "button", class: "btn btn-ghost", onclick: () => verFormula(pedido) }, "Ver fórmula"));
@@ -328,17 +337,21 @@ function tarjetaPedido(pedido) {
     acciones.push(botonEstado(pedido, "Aprobar", "pendiente_pago", false));
     acciones.push(botonEstado(pedido, "Rechazar", "rechazado", true));
   }
-  if (!terminal && pedido.estado !== "revision" && pedido.estado !== "despachado") acciones.push(botonEstado(pedido, "Despachado", "despachado", false));
-  if (!terminal && pedido.estado !== "revision" && pedido.estado !== "entregado") acciones.push(botonEstado(pedido, "Entregado", "entregado", false));
+  if (!negocio.pagoEnLinea) {
+    if (pedido.estado === "pendiente_pago" || pedido.estado === "pagado") acciones.push(botonEstado(pedido, "Despachar", "despachado", false));
+    if (pedido.estado === "despachado") acciones.push(botonEstado(pedido, "Entregado", "entregado", false));
+  } else {
+    if (!terminal && pedido.estado !== "revision" && pedido.estado !== "despachado") acciones.push(botonEstado(pedido, "Despachado", "despachado", false));
+    if (!terminal && pedido.estado !== "revision" && pedido.estado !== "entregado") acciones.push(botonEstado(pedido, "Entregado", "entregado", false));
+  }
   if (!terminal) acciones.push(botonEstado(pedido, "Cancelar", "cancelado", true));
-  const avisarBtn = el("button", {
+  acciones.push(el("button", {
     type: "button",
     class: "btn btn-whatsapp",
-    disabled: negocio.beta === true,
-    "aria-label": negocio.beta ? "Avisar por WhatsApp, disponible muy pronto" : "Avisar por WhatsApp",
-    onclick: negocio.beta ? null : () => avisarCliente(pedido)
-  }, negocio.beta ? "Disponible muy pronto" : "Avisar por WhatsApp");
-  acciones.push(avisarBtn);
+    "aria-label": "Avisar por WhatsApp",
+    onclick: () => avisarCliente(pedido)
+  }, "Avisar por WhatsApp"));
+  const pago = separarPago(pedido.indicaciones);
   return el("article", { class: "order-card" },
     el("div", { class: "order-top" },
       el("h3", {}, pedido.numero ? `N.º ${pedido.numero}` : "Pedido"),
@@ -346,9 +359,10 @@ function tarjetaPedido(pedido) {
       el("span", { class: `status status-${pedido.estado || "otro"}` }, etiquetaEstado(pedido.estado))
     ),
     el("p", {}, el("strong", {}, pedido.nombre || "Cliente sin nombre")),
-    whats ? el("a", { href: whats, target: "_blank", rel: "noopener noreferrer" }, pedido.telefono) : el("p", {}, pedido.telefono || "Sin celular"),
+    contactoPedido(pedido),
     el("p", {}, [pedido.direccion, pedido.barrio].filter(Boolean).join(" · ") || "Sin dirección"),
-    pedido.indicaciones ? el("p", { class: "hint" }, `Indicaciones: ${pedido.indicaciones}`) : null,
+    pago.forma ? el("p", {}, `Forma de pago: ${pago.forma}`) : null,
+    pago.notas ? el("p", { class: "hint" }, `Indicaciones: ${pago.notas}`) : null,
     el("ul", { class: "order-items" }, ...(pedido.items.length ? pedido.items : [{ nombre: "Sin detalle de productos", cantidad: "" }]).map((item) => el("li", {}, `${item.nombre}${item.presentacion ? ` · ${item.presentacion}` : ""}${item.cantidad ? ` × ${item.cantidad}` : ""}`))),
     el("p", { class: "order-total" }, `Total ${pedido.total == null ? "por confirmar" : dinero(pedido.total)}`),
     el("p", { class: pedido.avisado ? "avisado is-ok" : "avisado" }, pedido.avisado ? "Cliente avisado ✓" : "Falta avisar"),
