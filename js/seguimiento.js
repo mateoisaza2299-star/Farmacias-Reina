@@ -2,7 +2,7 @@ import { MENSAJE_REVISION, negocio } from "./config.js";
 import { supabase } from "./supabase.js";
 import { el } from "./dom.js";
 import { icono } from "./icons.js";
-import { dinero, fechaHora, mensajeError, soloDigitos } from "./format.js";
+import { dinero, fechaHora, mensajeError } from "./format.js";
 import { actualizarPedidoLocal, esToken, etiquetaEstado, interpretarPedido, leerPedidosLocal, PASOS } from "./pedidos.js";
 import { enlaceWhatsappPedido, montarPago } from "./pago.js";
 import { iniciarLayout } from "./layout.js";
@@ -63,13 +63,13 @@ function tarjeta(pedido, destacado) {
     const pago = el("div", { class: "pay-box", "data-pago": "true" });
     articulo.append(pago);
     montarPago(pago, pedido);
+  } else if (negocio.beta) {
+    const boton = el("button", { type: "button", class: "btn btn-whatsapp", disabled: true }, "Disponible muy pronto");
+    boton.setAttribute("aria-label", "Enviar pedido, disponible muy pronto");
+    articulo.append(boton);
   } else {
     const enlace = enlaceWhatsappPedido(pedido);
-    if (enlace) {
-      articulo.append(el("a", { class: "btn btn-whatsapp", href: enlace, target: "_blank", rel: "noopener noreferrer" }, "Escribir por WhatsApp"));
-    } else if (!soloDigitos(negocio.whatsapp)) {
-      articulo.append(el("p", { class: "hint" }, "WhatsApp se activa cuando el número queda configurado."));
-    }
+    if (enlace) articulo.append(el("a", { class: "btn btn-whatsapp", href: enlace, target: "_blank", rel: "noopener noreferrer" }, "Enviar pedido"));
   }
   return articulo;
 }

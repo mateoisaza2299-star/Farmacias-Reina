@@ -36,6 +36,10 @@ export function iniciarPago(pedido) {
   };
 }
 
+function sinEnlaces(texto) {
+  return String(texto || "").replace(/https?:\/\/\S+/gi, "").replace(/\s{2,}/g, " ").trim();
+}
+
 function lineas(pedido) {
   const items = Array.isArray(pedido?.items) ? pedido.items : [];
   if (!items.length) return "";
@@ -47,10 +51,11 @@ export function resumenWhatsapp(pedido) {
   const quien = pedido?.nombre ? `Soy ${pedido.nombre}. ` : "";
   const detalle = lineas(pedido);
   const total = pedido?.total == null ? "" : `\nTotal: ${dinero(pedido.total)}`;
-  return `Hola. ${quien}Hice el pedido ${numero} en ${negocio.nombre}.${detalle ? `\n${detalle}` : ""}${total}\nQuiero coordinar el pago.`;
+  return sinEnlaces(`Hola. ${quien}Hice el pedido ${numero} en ${negocio.nombre}.${detalle ? `\n${detalle}` : ""}${total}\nQuiero coordinar el pago.`);
 }
 
 export function enlaceWhatsappPedido(pedido) {
+  if (negocio.beta) return "";
   const destino = soloDigitos(negocio.whatsapp);
   if (!destino) return "";
   return `https://wa.me/${destino}?text=${encodeURIComponent(resumenWhatsapp(pedido))}`;
@@ -68,10 +73,11 @@ export function mensajeAviso(pedido) {
     rechazado: `${saludo} No pudimos validar la fórmula del pedido ${numero}. Escríbenos y te ayudamos a corregirlo.`,
     cancelado: `${saludo} Tu pedido ${numero} en ${negocio.nombre} fue cancelado.`
   };
-  return textos[pedido?.estado] || `${saludo} Te escribimos de ${negocio.nombre} por el pedido ${numero}.`;
+  return sinEnlaces(textos[pedido?.estado] || `${saludo} Te escribimos de ${negocio.nombre} por el pedido ${numero}.`);
 }
 
 export function enlaceAvisarCliente(pedido) {
+  if (negocio.beta) return "";
   let destino = soloDigitos(pedido?.telefono || "");
   if (destino.length === 10) destino = `57${destino}`;
   if (!destino) return "";
@@ -90,6 +96,16 @@ export function montarPago(contenedor, pedido) {
   nota.className = "pay-note";
   nota.textContent = resultado.mensaje;
   contenedor.append(nota);
+  if (negocio.beta) {
+    const boton = document.createElement("button");
+    boton.type = "button";
+    boton.className = "btn btn-whatsapp";
+    boton.disabled = true;
+    boton.textContent = "Disponible muy pronto";
+    boton.setAttribute("aria-label", "Enviar pedido, disponible muy pronto");
+    contenedor.append(boton);
+    return resultado;
+  }
   const enlace = enlaceWhatsappPedido(pedido);
   if (enlace) {
     const boton = document.createElement("a");
@@ -97,13 +113,8 @@ export function montarPago(contenedor, pedido) {
     boton.href = enlace;
     boton.target = "_blank";
     boton.rel = "noopener noreferrer";
-    boton.textContent = "Enviar pedido por WhatsApp";
+    boton.textContent = "Enviar pedido";
     contenedor.append(boton);
-  } else {
-    const aviso = document.createElement("p");
-    aviso.className = "hint";
-    aviso.textContent = "El botón de WhatsApp se activa cuando configuras el número en js/config.js.";
-    contenedor.append(aviso);
   }
   return resultado;
 }

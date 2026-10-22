@@ -1,34 +1,26 @@
 export const negocio = {
   nombre: "Droguerías Reina",
   beta: true,
-  slogan: "Tu droguería de confianza en Funza",
-  razonSocial: "EDITAR: razón social",
-  nit: "EDITAR: NIT",
-  regente: "EDITAR: nombre y registro del regente de farmacia",
-  whatsapp: "EDITAR",
-  telefono: "EDITAR",
-  direccion: "EDITAR: dirección en Funza, Cundinamarca",
-  horario: "EDITAR: horario de atención",
+  slogan: "Medicamentos de calidad a los mejores precios",
+  razonSocial: "Por confirmar",
+  nit: "Por confirmar",
+  regente: "Por confirmar",
+  whatsapp: "573003664793",
+  whatsappVisible: "300 366 4793",
+  telefono: "300 366 4793",
+  telefonoE164: "+573003664793",
+  direccion: "Calle 13 No. 11-06, Funza, Cundinamarca",
+  horario: "Lunes a sábado de 8:00 am a 8:00 pm",
+  horarioSchema: "Mo-Sa 08:00-20:00",
   ciudad: "Funza",
   departamento: "Cundinamarca",
   pais: "Colombia",
-  coberturaNota: "EDITAR: confirma las zonas de cobertura",
-  zonas: [
-    "Centro",
-    "La Aurora",
-    "El Cacique",
-    "El Hato",
-    "San Antonio",
-    "La Isla",
-    "El Dorado",
-    "La Florida",
-    "Villa Diana",
-    "El Recreo",
-    "San Carlos",
-    "La Estación",
-    "El Triángulo",
-    "Parque Industrial"
-  ]
+  cobertura: "Domicilios a Funza y Mosquera",
+  instagram: "https://www.instagram.com/droguerias.reina/",
+  instagramUsuario: "@droguerias.reina",
+  maps: "https://www.google.com/maps/search/?api=1&query=Calle+13+No.+11-06,+Funza,+Cundinamarca",
+  mapsEmbed: "https://maps.google.com/maps?q=Calle+13+No.+11-06,+Funza,+Cundinamarca&hl=es&z=16&output=embed",
+  sitio: "https://mateoisaza2299-star.github.io/Farmacias-Reina/"
 };
 
 export const categorias = [
@@ -48,4 +40,6 @@ export const AVISO_FORMULA = "Los medicamentos que requieren fórmula médica so
 
 export const MENSAJE_REVISION = "Tu pedido quedó en revisión. Nuestro regente validará la fórmula y te habilitaremos el pago.";
 
-export const ofertasFlashFin = "";
+export const AVISO_BETA = "Versión de prueba: los productos, precios e imágenes son de ejemplo";
+
+export const TEXTO_PRONTO = "Disponible muy pronto";

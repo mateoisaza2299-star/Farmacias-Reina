@@ -104,3 +104,31 @@ export function mensajeAuth(error) {
   if (texto === "No pudimos completar la acción. Intenta de nuevo.") return "No pudimos iniciar sesión. Revisa el correo y la contraseña.";
   return texto;
 }
+
+export function estadoHorario(fecha = new Date()) {
+  const partes = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Bogota",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(fecha);
+  const mapa = {};
+  partes.forEach((parte) => {
+    mapa[parte.type] = parte.value;
+  });
+  const dia = mapa.weekday;
+  const minutos = Number(mapa.hour) * 60 + Number(mapa.minute);
+  const abre = 8 * 60;
+  const cierra = 20 * 60;
+  if (dia !== "Sun" && minutos >= abre && minutos < cierra) {
+    return { abierto: true, texto: "Abierto ahora" };
+  }
+  if (dia === "Sun" || (dia === "Sat" && minutos >= cierra)) {
+    return { abierto: false, texto: "Cerrado, abrimos el lunes a las 8:00 am" };
+  }
+  if (minutos < abre) {
+    return { abierto: false, texto: "Cerrado, abrimos hoy a las 8:00 am" };
+  }
+  return { abierto: false, texto: "Cerrado, abrimos mañana a las 8:00 am" };
+}

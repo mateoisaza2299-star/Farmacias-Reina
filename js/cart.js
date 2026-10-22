@@ -32,7 +32,10 @@ export function leerCarrito() {
   try {
     const data = JSON.parse(localStorage.getItem(LLAVE) || "[]");
     if (!Array.isArray(data)) return [];
-    return data.filter((item) => item && item.id).map(normalizar).filter((item) => item.cantidad > 0);
+    const items = data.filter((item) => item && item.id).map(normalizar).filter((item) => item.cantidad > 0);
+    const limpios = items.filter((item) => !item.requiere_formula);
+    if (limpios.length !== items.length) localStorage.setItem(LLAVE, JSON.stringify(limpios));
+    return limpios;
   } catch {
     return [];
   }
@@ -49,6 +52,9 @@ function persistir(items) {
 }
 
 export function agregarProducto(producto) {
+  if (bandera(producto.requiere_formula)) {
+    return { ok: false, mensaje: "Este producto requiere fórmula médica. No se agrega al carrito." };
+  }
   const items = leerCarrito();
   const stock = Math.max(0, Math.trunc(Number(producto.stock) || 0));
   if (stock < 1) return { ok: false, mensaje: "Este producto está agotado." };
@@ -129,6 +135,10 @@ export function sincronizarCarrito(productos) {
   const items = leerCarrito().map((item) => {
     const producto = mapa.get(item.id);
     if (!producto) return item;
+    if (bandera(producto.requiere_formula)) {
+      aviso = `${item.nombre} requiere fórmula y salió del carrito.`;
+      return { ...item, cantidad: 0, requiere_formula: true };
+    }
     const stock = Math.max(0, Math.trunc(Number(producto.stock) || 0));
     if (stock < 1) {
       aviso = `${item.nombre} se agotó y salió del carrito.`;
@@ -147,7 +157,7 @@ export function sincronizarCarrito(productos) {
       imagen: producto.imagen,
       cantidad: Math.min(item.cantidad, stock)
     });
-  }).filter((item) => item.cantidad > 0 && item.stock !== 0);
+  }).filter((item) => item.cantidad > 0 && item.stock !== 0 && !item.requiere_formula);
   const json = JSON.stringify(items);
   if (json !== localStorage.getItem(LLAVE)) persistir(items);
   return aviso;

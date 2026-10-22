@@ -105,7 +105,7 @@ function validarFormulario(datos) {
   ok = marcar(nombre, nombre.value.trim().length >= 3 ? "" : "Escribe tu nombre completo.") && ok;
   ok = marcar(telefono, celularValido(telefono.value) ? "" : "Celular inválido. Debe tener 10 dígitos y empezar por 3.") && ok;
   ok = marcar(direccion, direccion.value.trim().length >= 5 ? "" : "Escribe la dirección de entrega.") && ok;
-  ok = marcar(barrio, barrio.value ? "" : "Elige el barrio de entrega.") && ok;
+  ok = marcar(barrio, barrio.value.trim().length >= 2 ? "" : "Escribe el barrio de entrega.") && ok;
   ok = marcar(politica, politica.checked ? "" : "Debes aceptar la política de tratamiento de datos.") && ok;
   if (datos.requiereFormula) {
     ok = marcar(archivo, validarArchivo(archivo.files[0])) && ok;
@@ -158,7 +158,7 @@ async function enviar(evento) {
       p_nombre: campo("nombre").value.trim(),
       p_telefono: campo("telefono").value.replace(/\D/g, ""),
       p_direccion: campo("direccion").value.trim(),
-      p_barrio: campo("barrio").value,
+      p_barrio: campo("barrio").value.trim(),
       p_indicaciones: campo("indicaciones").value.trim(),
       p_formula_path: ruta
     });

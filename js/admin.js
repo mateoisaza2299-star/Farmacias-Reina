@@ -1,5 +1,5 @@
 import { supabase } from "./supabase.js";
-import { categorias } from "./config.js";
+import { categorias, negocio } from "./config.js";
 import { sesionAdmin } from "./acceso.js";
 import { el } from "./dom.js";
 import { icono, marcaLogo } from "./icons.js";
@@ -19,7 +19,6 @@ let textoProducto = "";
 let paginaProducto = 1;
 let totalProductos = 0;
 let editando = null;
-let imagenNueva = null;
 let timerCampo = new Map();
 let poll = 0;
 
@@ -321,7 +320,7 @@ async function avisarCliente(pedido) {
 
 function tarjetaPedido(pedido) {
   const telefono = soloDigitos(pedido.telefono);
-  const whats = telefono.length === 10 ? `https://wa.me/57${telefono}` : telefono ? `https://wa.me/${telefono}` : "";
+  const whats = negocio.beta ? "" : telefono.length === 10 ? `https://wa.me/57${telefono}` : telefono ? `https://wa.me/${telefono}` : "";
   const terminal = ["entregado", "cancelado", "rechazado"].includes(pedido.estado);
   const acciones = [];
   if (pedido.formula_path) acciones.push(el("button", { type: "button", class: "btn btn-ghost", onclick: () => verFormula(pedido) }, "Ver fórmula"));
@@ -332,7 +331,14 @@ function tarjetaPedido(pedido) {
   if (!terminal && pedido.estado !== "revision" && pedido.estado !== "despachado") acciones.push(botonEstado(pedido, "Despachado", "despachado", false));
   if (!terminal && pedido.estado !== "revision" && pedido.estado !== "entregado") acciones.push(botonEstado(pedido, "Entregado", "entregado", false));
   if (!terminal) acciones.push(botonEstado(pedido, "Cancelar", "cancelado", true));
-  acciones.push(el("button", { type: "button", class: "btn btn-whatsapp", onclick: () => avisarCliente(pedido) }, "Avisar por WhatsApp"));
+  const avisarBtn = el("button", {
+    type: "button",
+    class: "btn btn-whatsapp",
+    disabled: negocio.beta === true,
+    "aria-label": negocio.beta ? "Avisar por WhatsApp, disponible muy pronto" : "Avisar por WhatsApp",
+    onclick: negocio.beta ? null : () => avisarCliente(pedido)
+  }, negocio.beta ? "Disponible muy pronto" : "Avisar por WhatsApp");
+  acciones.push(avisarBtn);
   return el("article", { class: "order-card" },
     el("div", { class: "order-top" },
       el("h3", {}, pedido.numero ? `N.º ${pedido.numero}` : "Pedido"),
@@ -412,41 +418,127 @@ function armarPedidos() {
   );
 }
 
-function urlSegura(valor) {
-  try {
-    const url = new URL(valor);
-    if (url.protocol === "https:" || url.protocol === "http:") return url.href;
-  } catch {
-    return "";
-  }
+function imagenGuardada(valor) {
+  const texto = String(valor || "").trim();
+  if (!texto || texto.startsWith("data:")) return "";
+  if (/^https?:\/\//i.test(texto)) return texto;
+  if (/^assets\/productos\/[a-z0-9-]+\.svg$/.test(texto)) return texto;
   return "";
 }
 
-async function comprimirImagen(archivo) {
-  if (!archivo.type.startsWith("image/")) throw new Error("La imagen debe ser JPG, PNG o WEBP.");
+function mostrarPrevia() {
+  const img = document.querySelector("[data-imagen-previa]");
+  const form = document.querySelector("#producto-form");
+  if (!img || !form) return;
+  const archivo = form.imagen?.files?.[0];
+  if (archivo) {
+    const url = URL.createObjectURL(archivo);
+    img.src = url;
+    img.hidden = false;
+    img.onload = () => URL.revokeObjectURL(url);
+    return;
+  }
+  const ruta = ilustracionSegura(document.querySelector("#imagen-ilustracion")?.value || "");
+  const actual = imagenGuardada(editando?.imagen);
+  const src = ruta || actual;
+  img.hidden = !src;
+  if (src) img.src = src;
+}
+
+const ILUSTRACIONES = [
+  "assets/productos/caja-tabletas-verde.svg",
+  "assets/productos/caja-tabletas-azul.svg",
+  "assets/productos/caja-tabletas-turquesa.svg",
+  "assets/productos/frasco-jarabe-verde.svg",
+  "assets/productos/frasco-jarabe-azul.svg",
+  "assets/productos/frasco-jarabe-turquesa.svg",
+  "assets/productos/frasco-pastillas-verde.svg",
+  "assets/productos/frasco-pastillas-azul.svg",
+  "assets/productos/frasco-pastillas-turquesa.svg",
+  "assets/productos/gotero-verde.svg",
+  "assets/productos/gotero-azul.svg",
+  "assets/productos/gotero-turquesa.svg",
+  "assets/productos/sobre-suero-verde.svg",
+  "assets/productos/sobre-suero-azul.svg",
+  "assets/productos/sobre-suero-turquesa.svg",
+  "assets/productos/tubo-crema-verde.svg",
+  "assets/productos/tubo-crema-azul.svg",
+  "assets/productos/tubo-crema-turquesa.svg",
+  "assets/productos/botella-locion-verde.svg",
+  "assets/productos/botella-locion-azul.svg",
+  "assets/productos/botella-locion-turquesa.svg",
+  "assets/productos/botiquin-verde.svg",
+  "assets/productos/botiquin-azul.svg",
+  "assets/productos/botiquin-turquesa.svg",
+  "assets/productos/curas-verde.svg",
+  "assets/productos/curas-azul.svg",
+  "assets/productos/curas-turquesa.svg",
+  "assets/productos/dispensador-verde.svg",
+  "assets/productos/dispensador-azul.svg",
+  "assets/productos/dispensador-turquesa.svg",
+  "assets/productos/panales-verde.svg",
+  "assets/productos/panales-azul.svg",
+  "assets/productos/panales-turquesa.svg",
+  "assets/productos/tensiometro-verde.svg",
+  "assets/productos/tensiometro-azul.svg",
+  "assets/productos/tensiometro-turquesa.svg",
+  "assets/productos/termometro-verde.svg",
+  "assets/productos/termometro-azul.svg",
+  "assets/productos/termometro-turquesa.svg",
+  "assets/productos/medicamentos.svg",
+  "assets/productos/cuidado.svg",
+  "assets/productos/bebe.svg",
+  "assets/productos/belleza.svg",
+  "assets/productos/vitaminas.svg",
+  "assets/productos/botiquin.svg",
+  "assets/productos/adulto.svg",
+  "assets/productos/hogar.svg"
+];
+
+function etiquetaIlustracion(ruta) {
+  const base = ruta.split("/").pop().replace(/\.svg$/i, "").replaceAll("-", " ");
+  return base.charAt(0).toUpperCase() + base.slice(1);
+}
+
+function ilustracionSegura(valor) {
+  return ILUSTRACIONES.includes(valor) ? valor : "";
+}
+
+async function prepararBlob(archivo) {
+  const tipos = ["image/jpeg", "image/png", "image/webp"];
+  if (!tipos.includes(archivo.type)) throw new Error("La imagen debe ser JPG, PNG o WEBP.");
+  if (archivo.size <= 1024 * 1024) return { blob: archivo, tipo: archivo.type };
   const bitmap = await createImageBitmap(archivo);
-  const escala = Math.min(1, 960 / Math.max(bitmap.width, bitmap.height));
+  const escala = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(bitmap.width * escala));
   canvas.height = Math.max(1, Math.round(bitmap.height * escala));
-  const ctx = canvas.getContext("2d", { alpha: false });
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const ctx = canvas.getContext("2d");
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close?.();
-  let calidad = 0.76;
+  let calidad = 0.86;
   let blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", calidad));
-  while (blob && blob.size > 320000 && calidad > 0.42) {
+  while (blob && blob.size > 1024 * 1024 && calidad > 0.45) {
     calidad -= 0.08;
     blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", calidad));
   }
-  if (!blob || blob.size > 450000) throw new Error("La imagen sigue siendo muy pesada. Prueba con otra más pequeña.");
-  return await new Promise((resolve, reject) => {
-    const lector = new FileReader();
-    lector.onload = () => resolve(String(lector.result));
-    lector.onerror = () => reject(new Error("No pudimos leer la imagen."));
-    lector.readAsDataURL(blob);
+  if (!blob || blob.size > 1024 * 1024) throw new Error("La imagen supera 1 MB. Elige una más liviana.");
+  return { blob, tipo: "image/jpeg" };
+}
+
+async function subirImagenProducto(archivo) {
+  const { blob, tipo } = await prepararBlob(archivo);
+  const ext = tipo === "image/png" ? "png" : tipo === "image/webp" ? "webp" : "jpg";
+  const ruta = `${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from("productos").upload(ruta, blob, {
+    contentType: tipo,
+    upsert: false,
+    cacheControl: "31536000"
   });
+  if (error) throw error;
+  const { data } = supabase.storage.from("productos").getPublicUrl(ruta);
+  if (!data?.publicUrl) throw new Error("No pudimos publicar la imagen.");
+  return data.publicUrl;
 }
 
 function programarCampo(id, patch, nodo) {
@@ -580,19 +672,12 @@ async function guardarProducto(evento) {
   aviso.textContent = errorTexto;
   if (errorTexto) return;
   const archivo = document.querySelector("#producto-form").imagen.files[0];
-  let imagen = editando?.imagen || null;
-  const url = urlSegura(document.querySelector("#imagen-url").value.trim());
+  const ilustracion = ilustracionSegura(document.querySelector("#imagen-ilustracion").value);
+  let imagen = imagenGuardada(editando?.imagen);
   try {
-    if (archivo) imagen = await comprimirImagen(archivo);
-    else if (document.querySelector("#imagen-url").value.trim()) {
-      if (!url) {
-        aviso.hidden = false;
-        aviso.textContent = "La imagen debe ser una dirección http o https.";
-        return;
-      }
-      imagen = url;
-    } else if (imagenNueva === "") imagen = null;
-    const payload = { ...datos, imagen };
+    if (archivo) imagen = await subirImagenProducto(archivo);
+    else if (ilustracion) imagen = ilustracion;
+    const payload = { ...datos, imagen: imagen || "" };
     let respuesta;
     if (editando?.id) respuesta = await supabase.from("productos").update(payload).eq("id", editando.id).select("id").maybeSingle();
     else respuesta = await supabase.from("productos").insert(payload).select("id").maybeSingle();
@@ -615,7 +700,6 @@ async function guardarProducto(evento) {
 
 function abrirProducto(producto) {
   editando = producto || null;
-  imagenNueva = null;
   const form = document.querySelector("#producto-form");
   form.reset();
   document.querySelector("#producto-titulo").textContent = producto ? "Editar producto" : "Nuevo producto";
@@ -633,13 +717,16 @@ function abrirProducto(producto) {
     form.stock.value = Number(producto.stock) || 0;
     form.requiere_formula.checked = esFormula(producto.requiere_formula);
     form.activo.checked = producto.activo !== false;
-    if (producto.imagen && String(producto.imagen).startsWith("http")) document.querySelector("#imagen-url").value = producto.imagen;
   } else {
     form.categoria.value = categorias[0].id;
     form.activo.checked = true;
     form.stock.value = 0;
     form.precio.value = 0;
   }
+  const selectImagen = document.querySelector("#imagen-ilustracion");
+  if (selectImagen) selectImagen.value = ilustracionSegura(producto?.imagen || "");
+  if (form.imagen) form.imagen.value = "";
+  mostrarPrevia();
   sincronizarOferta();
   document.querySelector("[data-prod-error]").hidden = true;
   const capa = document.querySelector("[data-overlay='producto']");
@@ -729,8 +816,13 @@ function armarProductos() {
       el("label", { class: "check" }, el("input", { type: "checkbox", name: "requiere_formula", onchange: sincronizarOferta }), el("span", {}, "Requiere fórmula médica")),
       el("p", { class: "hint" }, "Los productos con fórmula no se muestran como oferta."),
       el("label", { class: "check" }, el("input", { type: "checkbox", name: "activo" }), el("span", {}, "Activo en la tienda")),
-      campo("Imagen desde un enlace", el("input", { id: "imagen-url", type: "url", placeholder: "https://" })),
-      campo("O sube una imagen", el("input", { name: "imagen", type: "file", accept: "image/jpeg,image/png,image/webp" })),
+      campo("Ilustración", el("select", { id: "imagen-ilustracion", onchange: mostrarPrevia },
+        el("option", { value: "" }, "Conservar la imagen actual"),
+        ...ILUSTRACIONES.map((ruta) => el("option", { value: ruta }, etiquetaIlustracion(ruta)))
+      )),
+      el("img", { class: "admin-preview", "data-imagen-previa": "true", alt: "Vista previa de la imagen", hidden: true }),
+      campo("O sube una imagen (máximo 1 MB)", el("input", { name: "imagen", type: "file", accept: "image/jpeg,image/png,image/webp", onchange: mostrarPrevia })),
+      el("p", { class: "hint" }, "La imagen subida se guarda en el espacio público de productos. También puedes elegir una ilustración de la tienda."),
       el("button", { type: "submit", class: "btn btn-primary" }, "Guardar producto")
     )
   );
@@ -943,7 +1035,7 @@ async function iniciar() {
   espera.hidden = true;
   document.querySelector("[data-app]").hidden = false;
   const marca = document.querySelector("[data-logo]");
-  if (marca && !marca.querySelector(".logo-mark")) marca.prepend(marcaLogo());
+  if (marca && !marca.querySelector(".logo-img")) marca.prepend(marcaLogo());
   document.querySelector("[data-admin-email]").textContent = usuario.email || "";
   document.querySelector("[data-salir]").addEventListener("click", async () => {
     await supabase.auth.signOut();

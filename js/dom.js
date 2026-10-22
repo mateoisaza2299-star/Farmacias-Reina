@@ -23,16 +23,5 @@ export function limpiar(node) {
 }
 
 export function fragmento(texto) {
-  const frag = document.createDocumentFragment();
-  const partes = String(texto).split(/(EDITAR(?::[^.]*)?)/g);
-  for (const parte of partes) {
-    if (!parte) continue;
-    if (parte.startsWith("EDITAR")) {
-      const marca = document.createElement("span");
-      marca.className = "por-confirmar";
-      marca.textContent = "Por confirmar";
-      frag.append(marca);
-    } else frag.append(document.createTextNode(parte));
-  }
-  return frag;
+  return document.createTextNode(String(texto ?? ""));
 }

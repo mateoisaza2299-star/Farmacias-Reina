@@ -48,15 +48,12 @@ export function icono(nombre, clase) {
 }
 
 export function marcaLogo() {
-  const caja = document.createElement("span");
-  caja.className = "logo-mark";
-  caja.setAttribute("aria-hidden", "true");
-  const svg = document.createElementNS(NS, "svg");
-  svg.setAttribute("viewBox", "0 0 32 32");
-  const path = document.createElementNS(NS, "path");
-  path.setAttribute("fill", "#fff");
-  path.setAttribute("d", "M14 6h4v8h8v4h-8v8h-4v-8H6v-4h8V6z");
-  svg.append(path);
-  caja.append(svg);
-  return caja;
+  const img = document.createElement("img");
+  img.className = "logo-img";
+  img.src = "assets/logo/logo-192.png";
+  img.width = 44;
+  img.height = 44;
+  img.alt = "";
+  img.decoding = "async";
+  return img;
 }

@@ -6,7 +6,7 @@ import { negocio } from "./config.js";
 
 const logo = document.querySelector("[data-logo]");
 if (logo) {
-  logo.prepend(marcaLogo());
+  if (!logo.querySelector(".logo-img")) logo.prepend(marcaLogo());
   const nombre = logo.querySelector("[data-nombre]");
   if (nombre) nombre.textContent = negocio.nombre;
 }

@@ -1,11 +1,9 @@
-import { negocio, categorias, AVISO_CERRADO, AVISO_FORMULA } from "./config.js";
+import { negocio, categorias, AVISO_CERRADO, AVISO_BETA, TEXTO_PRONTO } from "./config.js";
 import { leerConfig } from "./datos.js";
 import { contarCarrito, fijarCantidad, quitarProducto, resumenCarrito } from "./cart.js";
-import { dinero, marcaVisible, sanearBusqueda } from "./format.js";
-import { el, fragmento } from "./dom.js";
+import { dinero, estadoHorario, marcaVisible, soloDigitos } from "./format.js";
+import { el } from "./dom.js";
 import { icono } from "./icons.js";
-import { supabase } from "./supabase.js";
-import { PORTADA, rutaImagen } from "./ilustraciones.js";
 
 let configActual = { domicilio: 0, pedido_minimo: 0, abierto: true };
 let soltarFoco = null;
@@ -15,18 +13,15 @@ export function obtenerConfig() {
 }
 
 export function avisar(texto) {
-  let pila = document.querySelector(".toasts");
-  if (!pila) {
-    pila = el("div", { class: "toasts", "aria-live": "polite" });
-    document.body.append(pila);
+  let toast = document.querySelector(".toast");
+  if (!toast) {
+    toast = el("div", { class: "toast", role: "status", "aria-live": "polite" });
+    document.body.append(toast);
   }
-  const toast = el("div", { class: "toast", role: "status" }, texto);
-  pila.append(toast);
-  requestAnimationFrame(() => toast.classList.add("is-on"));
-  setTimeout(() => {
-    toast.classList.remove("is-on");
-    setTimeout(() => toast.remove(), 400);
-  }, 2800);
+  toast.textContent = texto;
+  toast.classList.add("is-on");
+  clearTimeout(avisar.timer);
+  avisar.timer = setTimeout(() => toast.classList.remove("is-on"), 2400);
 }
 
 export function volarAlCarrito(imagen) {
@@ -34,7 +29,7 @@ export function volarAlCarrito(imagen) {
     rebotarContador();
     return;
   }
-  const destino = document.querySelector(window.matchMedia("(max-width: 767px)").matches ? ".tabbar [data-open-cart]" : ".header [data-open-cart]");
+  const destino = document.querySelector(window.matchMedia("(max-width: 899px)").matches ? ".tabbar [data-open-cart]" : ".header [data-open-cart]");
   if (!destino) return;
   const desde = imagen.getBoundingClientRect();
   const hacia = destino.getBoundingClientRect();
@@ -75,72 +70,91 @@ function medirHeader() {
   else window.addEventListener("resize", aplicar);
 }
 
-function ponerCampo(nodo, texto) {
-  nodo.replaceChildren(fragmento(texto));
+function ponerTexto(nodo, texto) {
+  nodo.textContent = texto;
+  nodo.classList.toggle("pendiente", texto.includes("Por confirmar"));
+}
+
+function paginaPublica() {
+  const nombre = decodeURIComponent((location.pathname.split("/").pop() || "index.html")).split("?")[0];
+  if (!nombre || nombre === "index.html") return negocio.sitio;
+  return `${negocio.sitio}${nombre}`;
 }
 
 function llenarNegocio() {
   const anio = document.querySelector("[data-year]");
   if (anio) anio.textContent = String(new Date().getFullYear());
   const mapa = {
+    slogan: negocio.slogan,
     razon: negocio.razonSocial,
     nit: `NIT ${negocio.nit}`,
     regente: `Regente de farmacia: ${negocio.regente}`,
     direccion: negocio.direccion,
     horario: negocio.horario,
-    cobertura: `${negocio.coberturaNota}. Zonas: ${negocio.zonas.join(", ")}.`
+    cobertura: negocio.cobertura
   };
   document.querySelectorAll("[data-field]").forEach((nodo) => {
     const campo = nodo.dataset.field;
-    if (mapa[campo]) ponerCampo(nodo, mapa[campo]);
+    if (mapa[campo]) ponerTexto(nodo, mapa[campo]);
   });
   const tel = document.querySelector("[data-field='telefono']");
   if (tel) {
-    const digitos = negocio.telefono.replace(/\D/g, "");
-    tel.replaceChildren();
-    if (digitos) {
-      const enlace = el("a", { href: `tel:+${digitos}` });
-      enlace.append(fragmento(negocio.telefono));
-      tel.append(enlace);
-    } else tel.append(fragmento(negocio.telefono));
+    const visible = `Celular ${negocio.telefono}`;
+    tel.classList.remove("pendiente");
+    if (negocio.beta) tel.textContent = visible;
+    else tel.replaceChildren(el("a", { href: `tel:${negocio.telefonoE164}` }, visible));
   }
   const wa = document.querySelector("[data-field='whatsapp']");
   if (wa) {
-    const digitos = negocio.whatsapp.replace(/\D/g, "");
-    wa.replaceChildren();
-    if (digitos) {
-      const enlace = el("a", { href: `https://wa.me/${digitos}`, target: "_blank", rel: "noopener noreferrer" }, "WhatsApp");
-      wa.append(enlace);
-    } else wa.append(fragmento(`WhatsApp ${negocio.whatsapp}`));
+    const visible = `WhatsApp ${negocio.whatsappVisible}`;
+    wa.classList.remove("pendiente");
+    if (negocio.beta) wa.textContent = visible;
+    else wa.replaceChildren(el("a", { href: `https://wa.me/${soloDigitos(negocio.whatsapp)}`, target: "_blank", rel: "noopener noreferrer" }, visible));
+  }
+  const ig = document.querySelector("[data-field='instagram']");
+  if (ig) {
+    ig.classList.remove("pendiente");
+    ig.replaceChildren(el("a", { href: negocio.instagram, target: "_blank", rel: "noopener noreferrer" }, negocio.instagramUsuario));
   }
   document.querySelectorAll("[data-nombre]").forEach((nodo) => {
     nodo.textContent = negocio.nombre;
   });
-  document.querySelectorAll(".editar").forEach((nodo) => {
-    nodo.className = "por-confirmar";
-    nodo.textContent = "Por confirmar";
+  document.querySelectorAll("[data-maps]").forEach((nodo) => {
+    nodo.href = negocio.maps;
   });
 }
 
 function esquema() {
+  const pagina = paginaPublica();
   const datos = {
     "@context": "https://schema.org",
     "@type": "Pharmacy",
     name: negocio.nombre,
-    url: location.href,
-    image: new URL("assets/og.png", location.href).href,
+    url: negocio.sitio,
+    logo: `${negocio.sitio}assets/logo/logo-512.png`,
+    image: `${negocio.sitio}assets/og.jpg`,
+    telephone: negocio.telefonoE164,
     address: {
       "@type": "PostalAddress",
+      streetAddress: "Calle 13 No. 11-06",
       addressLocality: negocio.ciudad,
       addressRegion: negocio.departamento,
       addressCountry: "CO"
     },
-    areaServed: negocio.zonas.map((zona) => ({ "@type": "Place", name: `${zona}, ${negocio.ciudad}` })),
+    openingHours: negocio.horarioSchema,
+    openingHoursSpecification: {
+      "@type": "OpeningHoursSpecification",
+      dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+      opens: "08:00",
+      closes: "20:00"
+    },
+    areaServed: [
+      { "@type": "City", name: "Funza" },
+      { "@type": "City", name: "Mosquera" }
+    ],
+    sameAs: [negocio.instagram],
     currenciesAccepted: "COP"
   };
-  if (!negocio.direccion.includes("EDITAR")) datos.address.streetAddress = negocio.direccion;
-  if (!negocio.telefono.includes("EDITAR")) datos.telephone = negocio.telefono;
-  if (!negocio.horario.includes("EDITAR")) datos.openingHours = negocio.horario;
   let script = document.getElementById("datos-farmacia");
   if (!script) {
     script = document.createElement("script");
@@ -150,11 +164,11 @@ function esquema() {
   }
   script.textContent = JSON.stringify(datos);
   const canon = document.querySelector("link[rel='canonical']");
-  if (canon && location.protocol.startsWith("http")) canon.href = `${location.origin}${location.pathname}`;
+  if (canon) canon.href = pagina;
   const og = document.querySelector("meta[property='og:url']");
-  if (og && location.protocol.startsWith("http")) og.content = location.href;
+  if (og) og.content = pagina;
   const imagen = document.querySelector("meta[property='og:image']");
-  if (imagen) imagen.content = new URL("assets/og.png", location.href).href;
+  if (imagen) imagen.content = `${negocio.sitio}assets/og.jpg`;
 }
 
 function revelar() {
@@ -175,23 +189,17 @@ function revelar() {
 
 function llenarBarrios() {
   const guardado = localStorage.getItem("barrio_reina") || "";
-  document.querySelectorAll("[data-barrio]").forEach((select) => {
-    const actual = select.value || guardado;
-    select.replaceChildren(el("option", { value: "" }, "Elige barrio"));
-    const zonas = [...negocio.zonas];
-    if (guardado && !zonas.includes(guardado)) zonas.push(guardado);
-    zonas.forEach((zona) => select.append(el("option", { value: zona }, zona)));
-    if (actual && [...select.options].some((opcion) => opcion.value === actual)) select.value = actual;
-    if (!select.dataset.listo) {
-      select.dataset.listo = "true";
-      select.addEventListener("change", () => {
-        localStorage.setItem("barrio_reina", select.value);
-        document.querySelectorAll("[data-barrio]").forEach((otro) => {
-          if (otro !== select) otro.value = select.value;
-        });
-        document.dispatchEvent(new CustomEvent("reina:barrio", { detail: select.value }));
+  document.querySelectorAll("[data-barrio]").forEach((campo) => {
+    if ("value" in campo && !campo.value && guardado) campo.value = guardado;
+    if (campo.dataset.listo) return;
+    campo.dataset.listo = "true";
+    campo.addEventListener("input", () => {
+      localStorage.setItem("barrio_reina", campo.value);
+      document.querySelectorAll("[data-barrio]").forEach((otro) => {
+        if (otro !== campo && otro.value !== campo.value) otro.value = campo.value;
       });
-    }
+      document.dispatchEvent(new CustomEvent("reina:barrio", { detail: campo.value }));
+    });
   });
 }
 
@@ -227,7 +235,7 @@ function lineaCarrito(item) {
   const menos = el("button", { type: "button", class: "qty-btn", "aria-label": `Disminuir ${item.nombre}`, onclick: () => fijarCantidad(item.id, item.cantidad - 1) }, icono("minus"));
   const mas = el("button", {
     type: "button",
-    class: "qty-btn",
+    class: "qty-btn is-plus",
     "aria-label": `Aumentar ${item.nombre}`,
     disabled: item.stock > 0 && item.cantidad >= item.stock,
     onclick: () => {
@@ -397,189 +405,31 @@ function mostrarCierre(abierto) {
   if (visible) document.documentElement.style.setProperty("--cerrado-h", `${banner.offsetHeight}px`);
 }
 
-const sugeridos = new Map();
-let indiceSug = -1;
-let buscarTimer = 0;
-let sugToken = 0;
-
-function listaSugerencias() {
-  return document.getElementById("sugerencias");
-}
-
-function cerrarSugerencias() {
-  const lista = listaSugerencias();
-  if (!lista) return;
-  lista.hidden = true;
-  lista.replaceChildren();
-  indiceSug = -1;
-  document.getElementById("buscar")?.setAttribute("aria-expanded", "false");
-  document.getElementById("buscar")?.removeAttribute("aria-activedescendant");
-}
-
-function marcarSugerencia() {
-  const lista = listaSugerencias();
-  if (!lista) return;
-  [...lista.children].forEach((nodo, i) => {
-    nodo.classList.toggle("is-on", i === indiceSug);
-    if (i === indiceSug) nodo.scrollIntoView({ block: "nearest" });
-  });
-  const activo = lista.children[indiceSug];
-  const input = document.getElementById("buscar");
-  if (!input) return;
-  if (activo) input.setAttribute("aria-activedescendant", activo.id);
-  else input.removeAttribute("aria-activedescendant");
-}
-
-function elegirSugerencia(producto) {
-  cerrarSugerencias();
-  if (document.body.dataset.page === "inicio") {
-    document.dispatchEvent(new CustomEvent("reina:producto", { detail: producto }));
-    return;
-  }
-  location.href = `index.html?producto=${encodeURIComponent(producto.id)}`;
-}
-
-async function pedirSugerencias(texto) {
-  const token = ++sugToken;
-  const lista = listaSugerencias();
-  const q = sanearBusqueda(texto);
-  if (!lista || q.length < 2) {
-    cerrarSugerencias();
-    return;
-  }
-  const cat = document.querySelector("[data-search-cat]")?.value || "";
-  let consulta = supabase
-    .from("productos")
-    .select("id,nombre,marca,presentacion,precio,imagen,categoria,stock,requiere_formula,activo,precio_anterior")
-    .eq("activo", true);
-  if (categorias.some((item) => item.id === cat)) consulta = consulta.eq("categoria", cat);
-  const { data, error } = await consulta.or(`nombre.ilike.%${q}%,marca.ilike.%${q}%`).limit(6);
-  if (token !== sugToken || texto !== document.getElementById("buscar")?.value) return;
-  if (error || !data?.length) {
-    cerrarSugerencias();
-    return;
-  }
-  sugeridos.clear();
-  lista.replaceChildren(...data.map((producto) => {
-    sugeridos.set(String(producto.id), producto);
-    const img = el("img", { src: rutaImagen(producto), alt: "", width: "40", height: "40" });
-    img.addEventListener("error", () => {
-      const reserva = rutaImagen({ ...producto, imagen: "" });
-      if (img.getAttribute("src") !== reserva) img.src = reserva;
-    });
-    const opcion = el("li", { role: "option", id: `sug-${producto.id}`, "data-sug": producto.id },
-      img,
-      el("span", {}, producto.nombre),
-      el("strong", {}, dinero(producto.precio))
-    );
-    opcion.addEventListener("mousedown", (evento) => evento.preventDefault());
-    opcion.addEventListener("click", () => elegirSugerencia(producto));
-    return opcion;
-  }));
-  lista.hidden = false;
-  document.getElementById("buscar")?.setAttribute("aria-expanded", "true");
-  indiceSug = -1;
-}
-
 function busqueda() {
   const params = new URLSearchParams(location.search);
   const inicial = params.get("q") || "";
-  const categoria = params.get("categoria") || "";
-  document.querySelectorAll("[data-search-cat]").forEach((select) => {
-    if ([...select.options].some((opcion) => opcion.value === categoria)) select.value = categoria;
-  });
   document.querySelectorAll("[data-search-input]").forEach((input) => {
     if (inicial) input.value = inicial;
     input.addEventListener("input", () => {
-      clearTimeout(buscarTimer);
-      buscarTimer = setTimeout(() => pedirSugerencias(input.value), 180);
-    });
-    input.addEventListener("keydown", (evento) => {
-      const lista = listaSugerencias();
-      const abierto = lista && !lista.hidden && lista.children.length;
-      if (!abierto) return;
-      if (evento.key === "ArrowDown") {
-        evento.preventDefault();
-        indiceSug = Math.min(lista.children.length - 1, indiceSug + 1);
-        marcarSugerencia();
-      } else if (evento.key === "ArrowUp") {
-        evento.preventDefault();
-        indiceSug = Math.max(0, indiceSug - 1);
-        marcarSugerencia();
-      } else if (evento.key === "Escape") {
-        cerrarSugerencias();
-      } else if (evento.key === "Enter" && indiceSug >= 0) {
-        evento.preventDefault();
-        const producto = sugeridos.get(lista.children[indiceSug].dataset.sug);
-        if (producto) elegirSugerencia(producto);
+      document.querySelectorAll("[data-search-input]").forEach((otro) => {
+        if (otro !== input) otro.value = input.value;
+      });
+      if (document.body.dataset.page === "inicio") {
+        document.dispatchEvent(new CustomEvent("reina:escribir", { detail: input.value }));
       }
     });
-  });
-  document.addEventListener("click", (evento) => {
-    if (!evento.target.closest(".search-wrap")) cerrarSugerencias();
   });
   document.querySelectorAll("[data-search-form]").forEach((form) => {
     form.addEventListener("submit", (evento) => {
       evento.preventDefault();
       const input = form.querySelector("[data-search-input]");
-      const select = form.querySelector("[data-search-cat]");
       const q = input ? input.value.trim() : "";
-      const cat = select ? select.value : "";
-      cerrarSugerencias();
       if (document.body.dataset.page === "inicio") {
-        document.dispatchEvent(new CustomEvent("reina:buscar", { detail: { q, categoria: cat } }));
+        document.dispatchEvent(new CustomEvent("reina:buscar", { detail: q }));
         return;
       }
-      const url = new URL("index.html", location.href);
-      if (q) url.searchParams.set("q", q);
-      if (cat) url.searchParams.set("categoria", cat);
-      url.hash = "catalogo";
-      location.href = `${url.pathname}${url.search}${url.hash}`;
+      location.href = `index.html?q=${encodeURIComponent(q)}#catalogo`;
     });
-  });
-}
-
-let menuCats = null;
-
-function asegurarMenu() {
-  if (menuCats) return menuCats;
-  const grid = el("div", { class: "mega-grid" });
-  categorias.forEach((categoria) => {
-    grid.append(el("a", {
-      href: `index.html?categoria=${encodeURIComponent(categoria.id)}#catalogo`,
-      "data-cat-link": "",
-      "data-cat": categoria.id
-    },
-      el("img", { src: PORTADA[categoria.id] || PORTADA.Medicamentos, alt: "", width: "72", height: "72" }),
-      el("span", {}, categoria.nombre)
-    ));
-  });
-  menuCats = el("div", { class: "mega", id: "menu-categorias", hidden: true },
-    el("div", { class: "mega-card" }, el("h2", {}, "Todas las categorías"), grid)
-  );
-  document.body.append(menuCats);
-  return menuCats;
-}
-
-function cerrarMenu() {
-  if (!menuCats || menuCats.hidden) return;
-  menuCats.hidden = true;
-  document.querySelectorAll("[data-open-cats]").forEach((boton) => boton.setAttribute("aria-expanded", "false"));
-}
-
-function abrirMenu() {
-  const menu = asegurarMenu();
-  menu.hidden = false;
-  document.querySelectorAll("[data-open-cats]").forEach((boton) => boton.setAttribute("aria-expanded", "true"));
-}
-
-function marcarCategorias() {
-  const params = new URLSearchParams(location.search);
-  const cat = params.get("categoria") || "";
-  const vista = params.get("vista") || "";
-  const catalogo = Boolean(cat || params.get("q") || vista === "catalogo");
-  document.querySelectorAll(".cat-bar [data-cat-link]").forEach((link) => {
-    link.classList.toggle("is-on", catalogo && !vista.startsWith("oferta") && vista !== "nuevos" && (link.dataset.cat || "") === cat);
   });
 }
 
@@ -587,101 +437,111 @@ function navegacion() {
   document.querySelectorAll("[data-open-cart]").forEach((boton) => {
     boton.addEventListener("click", abrirCarrito);
   });
-  document.addEventListener("click", (evento) => {
-    const boton = evento.target.closest("[data-open-cats]");
-    if (boton) {
-      evento.preventDefault();
-      if (menuCats && !menuCats.hidden) cerrarMenu();
-      else abrirMenu();
-      return;
-    }
-    if (evento.target.closest("[data-cat-link]")) cerrarMenu();
-    else if (menuCats && !menuCats.hidden && !evento.target.closest("#menu-categorias")) cerrarMenu();
-  });
-  document.addEventListener("keydown", (evento) => {
-    if (evento.key === "Escape" && menuCats && !menuCats.hidden) {
-      evento.preventDefault();
-      cerrarMenu();
-    }
-  });
   const buscar = document.querySelector("[data-tab='buscar']");
   if (buscar && document.body.dataset.page === "inicio") {
     buscar.addEventListener("click", (evento) => {
       evento.preventDefault();
-      document.getElementById("buscar")?.focus();
+      const input = document.getElementById("buscar");
+      document.getElementById("catalogo")?.scrollIntoView({ block: "start", behavior: "auto" });
+      input?.focus();
     });
   }
   if (location.hash === "#carrito") abrirCarrito();
   window.addEventListener("hashchange", () => {
     if (location.hash === "#carrito") abrirCarrito();
   });
-  marcarCategorias();
-  document.addEventListener("reina:filtros", marcarCategorias);
 }
 
 function cabeceraFija() {
   const header = document.querySelector("[data-header]");
   if (!header) return;
-  let ultimo = window.scrollY;
-  const aplicar = () => {
-    const y = window.scrollY;
-    header.classList.toggle("is-stuck", y > 4);
-    if (y < 40) header.classList.remove("is-compact");
-    else if (y > ultimo + 4) header.classList.add("is-compact");
-    else if (y < ultimo - 4) header.classList.remove("is-compact");
-    ultimo = y;
-  };
+  const aplicar = () => header.classList.toggle("is-stuck", window.scrollY > 4);
   aplicar();
   window.addEventListener("scroll", aplicar, { passive: true });
 }
 
-function avisoLegal() {
-  if (document.querySelector(".rx-legal")) return;
-  const nota = el("p", { class: "rx-legal", title: AVISO_FORMULA }, AVISO_FORMULA);
-  document.body.append(nota);
-  const aplicar = () => document.documentElement.style.setProperty("--legal-h", `${nota.offsetHeight}px`);
-  aplicar();
-  if ("ResizeObserver" in window) new ResizeObserver(aplicar).observe(nota);
+function pintarBeta() {
+  const beta = negocio.beta === true;
+  document.querySelectorAll("[data-beta-badge], [data-beta-bar], [data-beta-pie]").forEach((nodo) => {
+    if (beta) {
+      nodo.hidden = false;
+      if (nodo.hasAttribute("data-beta-bar") || nodo.hasAttribute("data-beta-pie")) nodo.textContent = AVISO_BETA;
+    } else nodo.remove();
+  });
+  const meta = document.querySelector("meta[name='robots']");
+  if (meta && document.body.dataset.page !== "admin" && document.body.dataset.page !== "login") {
+    meta.content = beta ? "noindex,nofollow" : "index,follow";
+  }
 }
 
-function prepararWhatsapp() {
-  const digitos = String(negocio.whatsapp || "").replace(/\D/g, "");
-  if (!digitos) return;
-  document.querySelectorAll("[data-whatsapp]").forEach((nodo) => {
-    nodo.href = `https://wa.me/${digitos}`;
-    nodo.target = "_blank";
-    nodo.rel = "noopener noreferrer";
+function pintarHorario() {
+  const estado = estadoHorario();
+  document.querySelectorAll("[data-horario]").forEach((nodo) => {
+    nodo.textContent = estado.texto;
+    nodo.classList.toggle("is-open", estado.abierto);
+    nodo.classList.toggle("is-closed", !estado.abierto);
   });
 }
 
-function pintarBeta() {
-  if (negocio.beta !== true) return;
-  const logo = document.querySelector(".header .logo");
-  const place = logo?.querySelector(".logo-place");
-  if (logo && place && !logo.querySelector(".beta-badge")) {
-    const fila = el("span", { class: "logo-sub" });
-    const aviso = el("span", {
-      class: "beta-tip",
-      id: "beta-aviso",
-      role: "tooltip"
-    }, "Versión de prueba: los productos, precios e imágenes son de ejemplo");
-    place.replaceWith(fila);
-    fila.append(place, el("span", { class: "beta-badge" }, "BETA", aviso));
-    logo.setAttribute("aria-describedby", "beta-aviso");
+function prepararWhatsapp() {
+  document.querySelectorAll("[data-wa]").forEach((nodo) => {
+    const accion = nodo.dataset.wa === "pedido" ? "Enviar pedido" : nodo.dataset.wa === "consultar" ? "Consultar" : "Atención";
+    if (negocio.beta) {
+      const boton = nodo.tagName === "BUTTON" ? nodo : el("button", { type: "button", class: nodo.className });
+      boton.disabled = true;
+      boton.textContent = TEXTO_PRONTO;
+      boton.setAttribute("aria-label", `${accion}, disponible muy pronto`);
+      if (boton !== nodo) nodo.replaceWith(boton);
+      return;
+    }
+    const textos = {
+      atencion: `Hola. Quiero atención en ${negocio.nombre}.`,
+      pedido: `Hola. Quiero información de mi pedido en ${negocio.nombre}.`,
+      consultar: `Hola. Quiero consultar un producto en ${negocio.nombre}.`
+    };
+    const url = `https://wa.me/${soloDigitos(negocio.whatsapp)}?text=${encodeURIComponent(textos[nodo.dataset.wa] || textos.atencion)}`;
+    nodo.textContent = accion;
+    nodo.addEventListener("click", (evento) => {
+      evento.preventDefault();
+      window.open(url, "_blank", "noopener");
+    });
+  });
+}
+
+function cargarMapas() {
+  const mapas = document.querySelectorAll("[data-mapa]");
+  if (!mapas.length) return;
+  const montar = (nodo) => {
+    if (nodo.dataset.listo) return;
+    nodo.dataset.listo = "1";
+    nodo.replaceChildren(el("iframe", {
+      src: nodo.dataset.src || negocio.mapsEmbed,
+      title: "Mapa de Droguerías Reina en la Calle 13 No. 11-06, Funza",
+      loading: "lazy",
+      referrerpolicy: "no-referrer-when-downgrade"
+    }));
+  };
+  if (!("IntersectionObserver" in window)) {
+    mapas.forEach(montar);
+    return;
   }
-  const footer = document.querySelector(".footer");
-  if (footer && !footer.querySelector(".footer-beta")) {
-    const linea = el("p", { class: "footer-beta container" }, "Versión beta. Los productos y precios son de ejemplo.");
-    const base = footer.querySelector(".footer-base");
-    if (base) footer.insertBefore(linea, base);
-    else footer.append(linea);
-  }
+  const observador = new IntersectionObserver((entradas) => {
+    entradas.forEach((entrada) => {
+      if (!entrada.isIntersecting) return;
+      montar(entrada.target);
+      observador.unobserve(entrada.target);
+    });
+  }, { rootMargin: "160px 0px" });
+  mapas.forEach((nodo) => observador.observe(nodo));
 }
 
 export function iniciarLayout() {
   medirHeader();
   llenarNegocio();
   pintarBeta();
+  pintarHorario();
+  prepararWhatsapp();
+  cargarMapas();
   esquema();
   revelar();
   llenarBarrios();
@@ -690,8 +550,7 @@ export function iniciarLayout() {
   busqueda();
   navegacion();
   cabeceraFija();
-  avisoLegal();
-  prepararWhatsapp();
+  setInterval(pintarHorario, 60000);
   document.addEventListener("reina:carrito", pintarDrawer);
   leerConfig().then((cfg) => {
     configActual = cfg;
