@@ -88,12 +88,6 @@ export async function pagoRechazado(idTransaccion) {
   return false;
 }
 
-const FORMAS = {
-  EFECTIVO: "Efectivo",
-  "DATÁFONO": "Datáfono",
-  TRANSFERENCIA: "Transferencia"
-};
-
 export function numeroWhatsapp() {
   return soloDigitos(negocio.modoPrueba ? negocio.whatsappPrueba : negocio.whatsappPedidos);
 }
@@ -106,9 +100,14 @@ export function enlaceWhatsapp(texto = "") {
 }
 
 export function separarPago(texto) {
+  const formas = {
+    EFECTIVO: "Efectivo",
+    "DATÁFONO": "Datáfono",
+    TRANSFERENCIA: "Transferencia"
+  };
   const match = String(texto || "").match(/^Pago:\s*(EFECTIVO|DATÁFONO|TRANSFERENCIA)\.\s*([\s\S]*)$/);
   if (!match) return { forma: "", notas: String(texto || "").trim() };
-  return { forma: FORMAS[match[1]] || match[1], notas: match[2].trim() };
+  return { forma: formas[match[1]] || match[1], notas: match[2].trim() };
 }
 
 export function mensajePedidoWhatsapp(pedido) {

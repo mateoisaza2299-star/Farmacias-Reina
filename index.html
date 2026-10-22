@@ -155,7 +155,7 @@
             </li>
             <li>
               <span class="point-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5l7 2.8v5.4c0 4.2-2.9 7-7 8.3-4.1-1.3-7-4.1-7-8.3V6.3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
-              <span><strong>Pagas al recibir: efectivo o transferencia</strong><span>Cuando te entregamos el pedido.</span></span>
+              <span><strong data-pago-texto="distintivo">Pagas al recibir: efectivo o transferencia. Pronto, pago en línea.</strong><span>Cuando te entregamos el pedido.</span></span>
             </li>
           </ul>
         </div>
@@ -177,8 +177,8 @@
           </article>
           <article>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h16v9H4zM4 11h16" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
-            <h3>Pagas al recibir: efectivo o transferencia</h3>
-            <p>Efectivo o transferencia cuando recibes el pedido.</p>
+            <h3 data-pago-texto="distintivo">Pagas al recibir: efectivo o transferencia. Pronto, pago en línea.</h3>
+            <p>Cuando te entregamos el pedido.</p>
           </article>
         </div>
       </div>
@@ -266,8 +266,8 @@
             <p>Al confirmar, guardamos un enlace de seguimiento en este dispositivo. También puedes abrirlo desde Seguir un pedido.</p>
           </details>
           <details>
-            <summary>¿Ya puedo pagar en línea?</summary>
-            <p>Por ahora pagas al recibir tu pedido, en efectivo o por transferencia.</p>
+            <summary>¿Puedo pagar con tarjeta?</summary>
+            <p data-pago-texto="faq">Muy pronto vas a poder pagar en línea con tarjeta, PSE y Nequi. Por ahora pagas al recibir tu pedido, en efectivo o por transferencia.</p>
           </details>
         </div>
       </div>
@@ -318,6 +318,10 @@
         <a href="devoluciones.html">Cambios y devoluciones</a>
         <a href="seguimiento.html">Seguir un pedido</a>
       </section>
+    </div>
+    <div class="container footer-medios">
+      <h2>Medios de pago</h2>
+      <p data-pago-texto="medios">Efectivo y transferencia al recibir. Próximamente: tarjetas, PSE y Nequi.</p>
     </div>
     <div class="container footer-base">
       <p>© <span data-year>2026</span> Droguerías Reina. Los medicamentos no sustituyen la valoración de un profesional de la salud.</p>

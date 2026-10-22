@@ -525,9 +525,34 @@ function cargarMapas() {
   mapas.forEach((nodo) => observador.observe(nodo));
 }
 
+const TEXTOS_PAGO = {
+  distintivo: {
+    pronto: "Pagas al recibir: efectivo o transferencia. Pronto, pago en línea.",
+    activo: "Paga en línea con tarjeta, PSE y Nequi, o al recibir en efectivo o transferencia."
+  },
+  medios: {
+    pronto: "Efectivo y transferencia al recibir. Próximamente: tarjetas, PSE y Nequi.",
+    activo: "Efectivo, transferencia y pago en línea con tarjeta, PSE y Nequi."
+  },
+  faq: {
+    pronto: "Muy pronto vas a poder pagar en línea con tarjeta, PSE y Nequi. Por ahora pagas al recibir tu pedido, en efectivo o por transferencia.",
+    activo: "Puedes pagar en línea con tarjeta, PSE y Nequi, o al recibir tu pedido en efectivo o por transferencia."
+  }
+};
+
+function aplicarTextosPago() {
+  const modo = negocio.pagoEnLinea ? "activo" : "pronto";
+  document.querySelectorAll("[data-pago-texto]").forEach((nodo) => {
+    const grupo = TEXTOS_PAGO[nodo.dataset.pagoTexto];
+    if (!grupo) return;
+    nodo.textContent = grupo[modo];
+  });
+}
+
 export function iniciarLayout() {
   medirHeader();
   llenarNegocio();
+  aplicarTextosPago();
   aplicarRobots();
   pintarHorario();
   prepararWhatsapp();

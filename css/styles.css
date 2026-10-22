@@ -684,7 +684,9 @@ html.scroll-lock, html.scroll-lock body { overflow: hidden; }
 .sheet-copy { white-space: pre-wrap; }
 .stock-note { font-weight: 700; }
 
-.checkout-grid, .footer-grid { display: grid; gap: 16px; }
+.checkout-grid, .footer-grid { display: grid; gap: 16px; min-width: 0; }
+.form-grid { min-width: 0; }
+.footer-grid > * { min-width: 0; }
 .checkout-grid { align-items: start; }
 .summary, .track-card, .order-card, .login-card, .prose, .settings { padding: 18px; }
 .summary h2, .login-card h1 { margin-bottom: 8px; }
@@ -699,8 +701,112 @@ html.scroll-lock, html.scroll-lock body { overflow: hidden; }
 .field-error, .form-error { color: var(--danger); font-weight: 650; }
 .formula-box { display: grid; gap: 10px; padding: 14px; border-radius: 16px; background: var(--amber-bg); border: 1px solid #fde68a; }
 .pay-box, .pay-note { display: grid; gap: 10px; }
-.pay-choice { display: grid; gap: 8px; }
-.pay-choice > p:first-child { font-weight: 700; }
+.pay-choice { display: grid; gap: 8px; min-width: 0; }
+.pay-choice > p:first-child { font-weight: 700; color: var(--ink); }
+.pay-cards { display: grid; gap: 10px; min-width: 0; }
+.pay-choice .pay-card {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 12px;
+  min-height: 64px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+}
+.pay-choice .pay-card input {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  accent-color: var(--blue-deep);
+}
+.pay-choice .pay-card input:focus-visible { outline: none; }
+.pay-choice .pay-card:focus-visible,
+.pay-choice .pay-card:has(input:focus-visible) {
+  outline: 3px solid var(--blue-deep);
+  outline-offset: 2px;
+}
+.pay-choice .pay-card:has(input:checked) {
+  border-color: var(--blue-deep);
+  background: var(--blue-soft);
+  box-shadow: inset 0 0 0 1px var(--blue-deep);
+}
+.pay-choice .pay-card:has(input:checked) .pay-card-title { color: var(--blue-ink); }
+.pay-choice .pay-card[aria-disabled="true"] {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  box-shadow: none;
+}
+.pay-choice .pay-card[aria-disabled="true"] .pay-card-title,
+.pay-choice .pay-card[aria-disabled="true"] .pay-lock { color: #334155; }
+.pay-choice .pay-card[aria-disabled="true"] .pay-card-sub,
+.pay-choice .pay-card[aria-disabled="true"] .pay-card-icon { color: #475569; }
+.pay-card-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  color: var(--blue-deep);
+}
+.pay-card-icon svg { width: 26px; height: 26px; }
+.pay-card-text { min-width: 0; }
+.pay-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pay-card-title { font-weight: 800; color: var(--ink); line-height: 1.25; }
+.pay-card-sub { display: block; margin-top: 2px; color: var(--muted); font-size: 0.88rem; font-weight: 500; line-height: 1.35; }
+.pay-lock { width: 16px; height: 16px; flex: 0 0 auto; }
+.pay-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #1e293b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.pay-soon {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.pay-brands {
+  display: flex;
+  gap: 12px;
+  margin: 0;
+  padding: 0 0 2px;
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  max-width: 100%;
+  min-width: 0;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 700;
+  scrollbar-width: thin;
+}
+.pay-brands li { flex: 0 0 auto; white-space: nowrap; }
+.pay-secure { margin: 0; color: var(--muted); font-size: 0.85rem; font-weight: 500; line-height: 1.45; }
+.summary .pay-medios-title { font-size: 0.95rem; margin-top: 14px; }
+.footer-medios { margin-top: 18px; }
+.footer-medios h2 { margin-bottom: 4px; }
+.hero-points li > span:last-child { min-width: 0; }
 .checkout-success { display: grid; gap: 14px; max-width: 720px; }
 .checkout-success .summary { order: 0; position: static; }
 .checkout-success .btn-whatsapp,

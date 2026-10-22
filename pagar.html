@@ -90,10 +90,48 @@
           <label>Indicaciones
             <textarea name="indicaciones" rows="3" maxlength="280" placeholder="Torre, apartamento o referencia"></textarea>
           </label>
-          <section class="pay-choice" data-pago-recibir>
-            <p>Forma de pago al recibir</p>
-            <label class="check"><input type="radio" name="pago" value="EFECTIVO" aria-describedby="pago-error"><span>Efectivo</span></label>
-            <label class="check"><input type="radio" name="pago" value="TRANSFERENCIA" aria-describedby="pago-error"><span>Transferencia</span></label>
+          <section class="pay-choice" data-pago-recibir aria-labelledby="pago-leyenda">
+            <p id="pago-leyenda">Forma de pago</p>
+            <div class="pay-cards">
+              <label class="pay-card" data-pay-online tabindex="0" aria-disabled="true">
+                <input type="radio" name="pago" value="EN_LINEA" disabled aria-describedby="pago-error">
+                <span class="pay-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7.5h16v9H4zM4 11h16M7.5 14.5h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span class="pay-card-text">
+                  <span class="pay-card-head">
+                    <span class="pay-card-title">Pagar en línea</span>
+                    <svg class="pay-lock" data-pay-lock viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 11V8a4 4 0 0 1 8 0v3M7 11h10v8H7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span class="pay-badge" data-pay-badge>Próximamente</span>
+                  </span>
+                  <span class="pay-card-sub">Tarjeta de crédito o débito, PSE, Nequi y Bancolombia</span>
+                </span>
+              </label>
+              <p class="pay-soon" data-pay-soon role="status" hidden>Muy pronto podrás pagar en línea con tarjeta, PSE y Nequi. Por ahora escoge una de las opciones de pago al recibir.</p>
+              <ul class="pay-brands" aria-label="Medios de pago en línea">
+                <li>Visa</li>
+                <li>Mastercard</li>
+                <li>American Express</li>
+                <li>PSE</li>
+                <li>Nequi</li>
+                <li>Bancolombia</li>
+              </ul>
+              <p class="pay-secure">Pago seguro con Wompi. Los datos de tu tarjeta se ingresan en la pantalla segura de Wompi, no en esta página.</p>
+              <label class="pay-card">
+                <input type="radio" name="pago" value="EFECTIVO" checked aria-describedby="pago-error">
+                <span class="pay-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 7.5h17v9h-17zM12 14.3a2.3 2.3 0 1 0 0-4.6 2.3 2.3 0 0 0 0 4.6zM6.2 12h.01M17.8 12h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span class="pay-card-text">
+                  <span class="pay-card-title">Efectivo al recibir</span>
+                  <span class="pay-card-sub">Pagas en efectivo cuando recibes el pedido.</span>
+                </span>
+              </label>
+              <label class="pay-card">
+                <input type="radio" name="pago" value="TRANSFERENCIA" aria-describedby="pago-error">
+                <span class="pay-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 8h12M13 5l3 3-3 3M20 16H8M11 13l-3 3 3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span class="pay-card-text">
+                  <span class="pay-card-title">Transferencia al recibir</span>
+                  <span class="pay-card-sub">Pagas por transferencia cuando recibes el pedido.</span>
+                </span>
+              </label>
+            </div>
             <p class="field-error" id="pago-error" hidden></p>
           </section>
           <section class="formula-box" data-formula hidden>
@@ -128,6 +166,8 @@
         <div class="sum-row sum-total"><span>Total estimado</span><strong data-total>$ 0</strong></div>
         <p class="field-error" data-minimo hidden></p>
         <p class="fine">El total definitivo lo calcula la droguería al confirmar el pedido. Aquí no se envían precios.</p>
+        <h3 class="pay-medios-title">Medios de pago</h3>
+        <p class="fine" data-pago-texto="medios">Efectivo y transferencia al recibir. Próximamente: tarjetas, PSE y Nequi.</p>
       </aside>
     </div>
     <section class="checkout-success" data-exito hidden>
@@ -173,6 +213,10 @@
         <a href="devoluciones.html">Cambios y devoluciones</a>
         <a href="seguimiento.html">Seguir un pedido</a>
       </section>
+    </div>
+    <div class="container footer-medios">
+      <h2>Medios de pago</h2>
+      <p data-pago-texto="medios">Efectivo y transferencia al recibir. Próximamente: tarjetas, PSE y Nequi.</p>
     </div>
     <div class="container footer-base">
       <p>© <span data-year>2026</span> Droguerías Reina. Los medicamentos no sustituyen la valoración de un profesional de la salud.</p>

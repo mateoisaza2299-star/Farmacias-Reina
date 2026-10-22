@@ -123,7 +123,7 @@ function validarFormulario(datos) {
     marcar(archivo, "");
     marcar(salud, "");
   }
-  if (!negocio.pagoEnLinea) ok = validarPago() && ok;
+  ok = validarPago() && ok;
   if (!ok) mostrarError("Revisa los campos marcados para continuar.");
   else mostrarError("");
   if (!ok) {
@@ -133,17 +133,33 @@ function validarFormulario(datos) {
   return ok;
 }
 
-function validarPago() {
+function formaElegida() {
   const elegido = document.querySelector("input[name='pago']:checked");
+  if (!elegido || elegido.disabled) return "";
+  if (elegido.value === "EN_LINEA" && !negocio.pagoEnLinea) return "";
+  return elegido.value;
+}
+
+function esRecibir(forma) {
+  return forma === "EFECTIVO" || forma === "TRANSFERENCIA";
+}
+
+function validarPago() {
+  const forma = formaElegida();
+  const ok = esRecibir(forma) || forma === "EN_LINEA";
   const ayuda = document.getElementById("pago-error");
   document.querySelectorAll("input[name='pago']").forEach((radio) => {
-    radio.setAttribute("aria-invalid", elegido ? "false" : "true");
+    if (radio.disabled) {
+      radio.removeAttribute("aria-invalid");
+      return;
+    }
+    radio.setAttribute("aria-invalid", ok ? "false" : "true");
   });
   if (ayuda) {
-    ayuda.hidden = Boolean(elegido);
-    ayuda.textContent = elegido ? "" : "Elige cómo vas a pagar al recibir.";
+    ayuda.hidden = ok;
+    ayuda.textContent = ok ? "" : "Elige cómo vas a pagar al recibir.";
   }
-  return Boolean(elegido);
+  return ok;
 }
 
 function filaResumen(etiqueta, valor) {
@@ -184,7 +200,7 @@ function mostrarExito(pedido) {
     );
   }
   const wa = document.querySelector("[data-exito-wa]");
-  const enLinea = negocio.pagoEnLinea && !pedido.formula;
+  const enLinea = pedido.pagoLinea === true && !pedido.formula;
   if (enLinea) {
     if (wa) wa.hidden = true;
     const zona = document.querySelector("[data-exito-pago]");
@@ -242,8 +258,31 @@ function opcionRecibir(pedido) {
 }
 
 function prepararPago() {
-  const bloque = document.querySelector("[data-pago-recibir]");
-  if (bloque) bloque.hidden = negocio.pagoEnLinea === true;
+  const tarjeta = document.querySelector("[data-pay-online]");
+  const radio = tarjeta?.querySelector("input[name='pago']");
+  const aviso = document.querySelector("[data-pay-soon]");
+  if (!tarjeta || !radio) return;
+  const mostrarAviso = () => {
+    if (!radio.disabled || !aviso) return;
+    aviso.hidden = false;
+  };
+  tarjeta.addEventListener("click", mostrarAviso);
+  tarjeta.addEventListener("focusin", mostrarAviso);
+  tarjeta.addEventListener("keydown", (evento) => {
+    if (!radio.disabled) return;
+    if (evento.key !== " " && evento.key !== "Enter") return;
+    evento.preventDefault();
+    mostrarAviso();
+  });
+  if (!negocio.pagoEnLinea) return;
+  radio.disabled = false;
+  tarjeta.removeAttribute("aria-disabled");
+  tarjeta.removeAttribute("tabindex");
+  const badge = document.querySelector("[data-pay-badge]");
+  const candado = document.querySelector("[data-pay-lock]");
+  if (badge) badge.hidden = true;
+  if (candado) candado.hidden = true;
+  if (aviso) aviso.hidden = true;
 }
 
 async function subirFormula(archivo) {
@@ -271,9 +310,10 @@ async function enviar(evento) {
     return;
   }
   if (!validarFormulario(datos)) return;
-  const forma = negocio.pagoEnLinea ? "" : (document.querySelector("input[name='pago']:checked")?.value || "");
+  const forma = formaElegida();
+  const enLinea = forma === "EN_LINEA";
   const notas = campo("indicaciones").value.trim();
-  const indicaciones = forma ? `Pago: ${forma}. ${notas}`.trim() : notas;
+  const indicaciones = esRecibir(forma) ? `Pago: ${forma}. ${notas}`.trim() : notas;
   enviando = true;
   pintarResumen();
   let ruta = null;
@@ -315,12 +355,13 @@ async function enviar(evento) {
       indicaciones,
       notas,
       formaPago: FORMAS[forma] || "",
+      pagoLinea: enLinea,
       formula: Boolean(ruta),
       formula_path: ruta
     };
     confirmado = true;
     vaciarCarrito();
-    if (negocio.pagoEnLinea && ruta) {
+    if (enLinea && ruta) {
       location.href = `seguimiento.html?pedido=${encodeURIComponent(token)}`;
       return;
     }
