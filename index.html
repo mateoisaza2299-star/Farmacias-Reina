@@ -65,11 +65,16 @@
       <a href="#ofertas" data-spy="ofertas">Ofertas</a>
       <a href="#como-pedir" data-spy="como-pedir">Cómo pedir</a>
       <a href="#catalogo" data-spy="catalogo">Catálogo</a>
+      <a href="mis-pedidos.html" data-mis-pedidos>Mis pedidos<span class="pedido-aviso" data-pedidos-aviso hidden></span></a>
       <span class="nav-indicator" aria-hidden="true"></span>
     </nav>
   </header>
   <div class="closed-banner" data-cerrado hidden>Por ahora no estamos recibiendo pedidos</div>
   <main id="contenido">
+    <p class="pedido-franja" data-pedido-franja hidden>
+      <span data-pedido-franja-texto></span>
+      <a href="mis-pedidos.html">Mis pedidos</a>
+    </p>
     <section class="section" id="categorias">
       <div class="container reveal">
         <div class="section-head">
@@ -310,7 +315,7 @@
           </details>
           <details>
             <summary>¿Cómo sigo mi pedido?</summary>
-            <div class="faq-body"><p>Al confirmar, guardamos un enlace de seguimiento en este dispositivo. También puedes abrirlo desde Seguir un pedido.</p></div>
+            <div class="faq-body"><p>Al confirmar, el pedido queda guardado en este dispositivo. Lo ves en Mis pedidos, con su estado y su detalle.</p></div>
           </details>
           <details>
             <summary>¿Puedo pagar con tarjeta?</summary>
@@ -363,6 +368,7 @@
         <a href="terminos.html">Términos y condiciones</a>
         <a href="privacidad.html">Política de privacidad</a>
         <a href="devoluciones.html">Cambios y devoluciones</a>
+        <a href="mis-pedidos.html" data-mis-pedidos>Mis pedidos<span class="pedido-aviso" data-pedidos-aviso hidden></span></a>
         <a href="seguimiento.html">Seguir un pedido</a>
       </section>
     </div>
@@ -379,6 +385,7 @@
     <a href="index.html#inicio" data-tab="inicio"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.2 12 4l8 7.2M7 10.8V20h10v-9.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>Inicio</span></a>
     <a href="index.html#categorias" data-tab="categorias"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg><span>Categorías</span></a>
     <a href="index.html#buscar" data-tab="buscar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 1 0-7-7 7 7 0 0 0 7 7zM20 20l-3.6-3.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Buscar</span></a>
+    <a href="mis-pedidos.html" data-tab="pedidos" data-mis-pedidos><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.5h7l3 3V20.5H7zM14 3.5V7h3M9 11h6M9 15h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg><span>Mis pedidos</span><span class="pedido-aviso" data-pedidos-aviso hidden></span></a>
     <button type="button" data-open-cart data-tab="carrito" aria-haspopup="dialog" aria-expanded="false" aria-controls="carrito"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14l-1.5 11H6.5zM9 7V5.8a3 3 0 0 1 6 0V7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Carrito</span><span class="cart-count" data-cart-count hidden>0</span></button>
   </nav>
   <noscript><p class="rx-note container">Para ver el catálogo y armar tu pedido necesitas activar JavaScript.</p></noscript>

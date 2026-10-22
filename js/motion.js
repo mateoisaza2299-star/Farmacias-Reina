@@ -357,6 +357,7 @@ function espia() {
     const pagina = document.body.dataset.page;
     let tab = "inicio";
     if (pagina === "pagar") tab = "carrito";
+    else if (pagina === "pedidos") tab = "pedidos";
     else if (pagina === "inicio") {
       pares.forEach(([id, destino]) => {
         const seccion = document.getElementById(id);

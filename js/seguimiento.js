@@ -3,7 +3,8 @@ import { supabase } from "./supabase.js";
 import { el } from "./dom.js";
 import { icono } from "./icons.js";
 import { dinero, fechaHora, mensajeError } from "./format.js";
-import { actualizarPedidoLocal, esToken, etiquetaEstado, interpretarPedido, leerPedidosLocal, PASOS } from "./pedidos.js";
+import { actualizarPedidoLocal, clasePasoCliente, esToken, etiquetaEstado, interpretarPedido, leerPedidosLocal, PASOS, pasosCliente } from "./pedidos.js";
+import { bloqueCancelar } from "./pedido-acciones.js";
 import { enlaceWhatsappPedido, montarPago, pagoRechazado, separarPago } from "./pago.js";
 import { iniciarLayout } from "./layout.js";
 import { bloqueEsqueleto, desdeEsqueleto, estadoFallo, marcarEsqueleto } from "./motion.js";
@@ -42,43 +43,6 @@ function pasoEstado(estado) {
   return PASOS.findIndex(([clave]) => clave === estado);
 }
 
-function pasosRecibir(pedido) {
-  const formula = Boolean(pedido.formula_path) || pedido.estado === "revision";
-  const pasos = [["recibido", "Recibido"]];
-  if (formula) pasos.push(["revision", "En revisión"]);
-  pasos.push(["camino", "En camino"], ["entregado", "Entregado"]);
-  return pasos;
-}
-
-function claseRecibir(pedido, clave, indice, pasos) {
-  const estado = pedido.estado;
-  if (estado === "rechazado" || estado === "cancelado") return "";
-  const orden = pasos.map(([id]) => id);
-  if (estado === "revision") {
-    const actual = orden.indexOf("revision");
-    if (indice < actual) return "is-done";
-    if (indice === actual) return "is-now";
-    return "";
-  }
-  if (estado === "pendiente_pago" || estado === "pagado") {
-    if (orden.includes("revision")) return indice <= orden.indexOf("revision") ? "is-done" : "";
-    return clave === "recibido" ? "is-now" : "";
-  }
-  if (estado === "despachado") {
-    const actual = orden.indexOf("camino");
-    if (indice < actual) return "is-done";
-    if (indice === actual) return "is-now";
-    return "";
-  }
-  if (estado === "entregado") {
-    const actual = orden.indexOf("entregado");
-    if (indice < actual) return "is-done";
-    if (indice === actual) return "is-now";
-    return "";
-  }
-  return "";
-}
-
 function iconoPaso(clave) {
   const mapa = {
     recibido: "check",
@@ -95,10 +59,12 @@ function iconoPaso(clave) {
 }
 
 function paso(clave, etiqueta, clase) {
-  return el("li", { class: clase },
+  const item = el("li", { class: clase },
     el("span", { class: "step-ico", "aria-hidden": "true" }, icono(iconoPaso(clave))),
     el("span", {}, etiqueta)
   );
+  if (clase === "is-now") item.setAttribute("aria-current", "step");
+  return item;
 }
 
 function lineaEstados(pedido) {
@@ -112,9 +78,9 @@ function lineaEstados(pedido) {
     });
     return lista;
   }
-  const pasos = pasosRecibir(pedido);
+  const pasos = pasosCliente(pedido);
   pasos.forEach(([clave, etiqueta], indice) => {
-    lista.append(paso(clave, etiqueta, claseRecibir(pedido, clave, indice, pasos)));
+    lista.append(paso(clave, etiqueta, clasePasoCliente(pedido, clave, indice, pasos)));
   });
   return lista;
 }
@@ -146,6 +112,8 @@ function tarjeta(pedido, destacado) {
   }
   articulo.append(el("p", { class: "track-total" }, el("span", {}, "Total"), el("strong", {}, pedido.total == null ? "Por confirmar" : dinero(pedido.total))));
   articulo.append(lineaEstados(pedido));
+  const cancelar = bloqueCancelar(pedido, () => refrescar());
+  if (cancelar) articulo.append(cancelar);
   const confirmar = destacado && vuelveDePago();
   const recibir = Boolean(separarPago(pedido.indicaciones).forma);
   if (confirmar && pedido.estado === "pagado") {
@@ -199,7 +167,7 @@ async function consultar(token) {
   const pedido = interpretarPedido(data);
   if (!pedido) return null;
   pedido.token = pedido.token || token;
-  actualizarPedidoLocal(token, { numero: pedido.numero, estado: pedido.estado });
+  actualizarPedidoLocal(token, { numero: pedido.numero, creado: pedido.created_at });
   return pedido;
 }
 

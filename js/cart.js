@@ -76,6 +76,27 @@ export function agregarProducto(producto) {
   return persistir(items);
 }
 
+export function sumarProducto(producto, cantidadPedida) {
+  if (bandera(producto.requiere_formula)) return { ok: false, motivo: "formula" };
+  const stock = Math.max(0, Math.trunc(Number(producto.stock) || 0));
+  if (stock < 1) return { ok: false, motivo: "agotado" };
+  const pedida = Math.max(1, Math.trunc(Number(cantidadPedida) || 1));
+  const items = leerCarrito();
+  const indice = items.findIndex((item) => item.id === String(producto.id));
+  const ya = indice >= 0 ? items[indice].cantidad : 0;
+  const espacio = stock - ya;
+  if (espacio < 1) return { ok: false, motivo: "agotado" };
+  const agregado = Math.min(pedida, espacio);
+  if (indice >= 0) {
+    items[indice] = normalizar({ ...items[indice], ...producto, stock, cantidad: ya + agregado });
+  } else {
+    items.push(normalizar({ ...producto, stock, cantidad: agregado }));
+  }
+  const guardado = persistir(items);
+  if (!guardado.ok) return guardado;
+  return { ok: true, agregado, parcial: agregado < pedida };
+}
+
 export function fijarCantidad(id, cantidad) {
   const items = leerCarrito();
   const item = items.find((row) => row.id === String(id));

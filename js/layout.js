@@ -8,6 +8,7 @@ import { icono } from "./icons.js";
 import { animarDinero, lineaEsqueleto, marcarEsqueleto, prepararImagen } from "./motion.js";
 import { iniciarBusqueda } from "./buscar.js";
 import { supabase } from "./supabase.js";
+import { cambiosDeEstado, esActivo, fusionarEstados, interpretarPedido, leerPedidosLocal, pedidoActivoReciente, reemplazarPedidosLocal, textoFranja } from "./pedidos.js";
 import { COLUMNAS, estadoVacio, tarjetaCorta } from "./ui-producto.js";
 
 let configActual = { domicilio: 0, pedido_minimo: 0, abierto: true };
@@ -176,8 +177,21 @@ function esquema() {
   if (canon) canon.href = pagina;
   const og = document.querySelector("meta[property='og:url']");
   if (og) og.content = pagina;
-  const imagen = document.querySelector("meta[property='og:image']");
-  if (imagen) imagen.content = `${negocio.sitio}assets/og/og-droguerias-reina-v2.jpg`;
+  const titulo = "Droguería en Funza · Droguerías Reina";
+  const descripcion = "Pide tus medicamentos en línea y recíbelos en casa en Funza y Mosquera. Pagas al recibir.";
+  const imagenUrl = `${negocio.sitio}assets/og/og-droguerias-reina-v2.jpg`;
+  const poner = (selector, valor) => {
+    const nodo = document.querySelector(selector);
+    if (nodo) nodo.content = valor;
+  };
+  poner("meta[property='og:title']", titulo);
+  poner("meta[property='og:description']", descripcion);
+  poner("meta[property='og:image']", imagenUrl);
+  poner("meta[property='og:image:secure_url']", imagenUrl);
+  poner("meta[property='og:image:alt']", "Logo de Droguerías Reina, droguería en Funza");
+  poner("meta[name='twitter:title']", titulo);
+  poner("meta[name='twitter:description']", descripcion);
+  poner("meta[name='twitter:image']", imagenUrl);
 }
 
 function llenarBarrios() {
@@ -529,8 +543,8 @@ function aplicarRobots() {
   const meta = document.querySelector("meta[name='robots']");
   if (!meta) return;
   const pagina = document.body?.dataset.page || "";
-  const admin = pagina === "admin" || pagina === "login";
-  meta.content = admin || negocio.modoPrueba ? "noindex, nofollow" : "index, follow";
+  const privado = pagina === "admin" || pagina === "login" || pagina === "ausente";
+  meta.content = privado || negocio.modoPrueba ? "noindex, nofollow" : "index, follow";
 }
 
 function pintarHorario() {
@@ -612,6 +626,58 @@ function aplicarTextosPago() {
   });
 }
 
+let vigilando = false;
+
+export function pintarConteoPedidos(cantidad) {
+  const total = Math.max(0, Number(cantidad) || 0);
+  document.querySelectorAll("[data-pedidos-aviso]").forEach((nodo) => {
+    nodo.hidden = total < 1;
+    nodo.textContent = total ? String(total) : "";
+  });
+  document.querySelectorAll("[data-mis-pedidos]").forEach((enlace) => {
+    if (total > 0) enlace.setAttribute("aria-label", `Mis pedidos, ${total} en curso`);
+    else enlace.removeAttribute("aria-label");
+  });
+}
+
+function pintarFranja(pedido) {
+  const franja = document.querySelector("[data-pedido-franja]");
+  if (!franja) return;
+  const texto = textoFranja(pedido);
+  const nodo = franja.querySelector("[data-pedido-franja-texto]");
+  if (!texto) {
+    franja.hidden = true;
+    if (nodo) nodo.textContent = "";
+    return;
+  }
+  if (nodo && nodo.textContent !== texto) nodo.textContent = texto;
+  franja.hidden = false;
+}
+
+async function vigilarPedidos() {
+  if (vigilando) return;
+  const locales = leerPedidosLocal();
+  if (!locales.length) {
+    pintarConteoPedidos(0);
+    pintarFranja(null);
+    return;
+  }
+  vigilando = true;
+  try {
+    const { data, error } = await supabase.rpc("estado_pedidos", { p_tokens: locales.map((row) => row.token) });
+    if (error) return;
+    const remotos = (Array.isArray(data) ? data : []).map((row) => interpretarPedido(row)).filter(Boolean);
+    reemplazarPedidosLocal(fusionarEstados(leerPedidosLocal(), remotos));
+    pintarConteoPedidos(remotos.filter((pedido) => esActivo(pedido.estado)).length);
+    pintarFranja(pedidoActivoReciente(remotos));
+    if (document.body.dataset.page === "inicio") cambiosDeEstado(remotos).forEach((texto) => avisar(texto));
+  } catch {
+    return;
+  } finally {
+    vigilando = false;
+  }
+}
+
 export function iniciarLayout() {
   medirHeader();
   llenarNegocio();
@@ -636,6 +702,20 @@ export function iniciarLayout() {
     volarAlCarrito(detalle.imagen);
     avisar(`Agregaste ${detalle.producto?.nombre || "el producto"}`);
   });
+  if (document.body?.dataset.page === "pedidos") {
+    document.querySelectorAll("[data-mis-pedidos]").forEach((nodo) => nodo.setAttribute("aria-current", "page"));
+  } else {
+    vigilarPedidos();
+  }
+  if (document.body?.dataset.page === "inicio") {
+    setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      vigilarPedidos();
+    }, 30000);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") vigilarPedidos();
+    });
+  }
   leerConfig().then((cfg) => {
     configActual = cfg;
     mostrarCierre(cfg.abierto);
