@@ -6,6 +6,7 @@ import { claveCatalogo, dinero, esFormula, fechaHora, mensajeError } from "./for
 import { sumarProducto } from "./cart.js";
 import { enlaceWhatsapp } from "./pago.js";
 import { abrirCarrito, avisar, iniciarLayout, pintarConteoPedidos } from "./layout.js";
+import { actualizarInsignia } from "./pwa.js";
 import { bloqueCancelar, pedirConfirmacion } from "./pedido-acciones.js";
 import { bloqueEsqueleto, desdeEsqueleto, estadoFallo, marcarEsqueleto } from "./motion.js";
 import { COLUMNAS } from "./ui-producto.js";
@@ -286,6 +287,7 @@ async function refrescar() {
     raiz.setAttribute("aria-busy", "false");
     raiz.replaceChildren(vacio());
     pintarConteoPedidos(0);
+    actualizarInsignia(0);
     firmaActual = "";
     cargando = false;
     return;
@@ -309,7 +311,9 @@ async function refrescar() {
       }
       return { ...remoto, numero: remoto.numero ?? row.numero, created_at: remoto.created_at || row.creado };
     }).filter((pedido) => vigentes.has(String(pedido.token).toLowerCase())));
-    pintarConteoPedidos(pedidos.filter((pedido) => esActivo(pedido.estado)).length);
+    const activos = pedidos.filter((pedido) => esActivo(pedido.estado)).length;
+    pintarConteoPedidos(activos);
+    actualizarInsignia(activos);
     cambiosDeEstado(pedidos).forEach((texto) => avisar(texto));
     const firma = firmaDe(pedidos);
     if (!forzar && !primera && firma === firmaActual) return;

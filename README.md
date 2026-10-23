@@ -9,6 +9,7 @@ Ahí vive lo que no sale de Supabase:
 - `modoPrueba`: en `true` la tienda publica `noindex` y los botones de WhatsApp usan `whatsappPrueba`. Para salir a producción hay que dejarlo en `false`. Hoy se queda en `true` a propósito.
 - `pagoEnLinea`: déjalo en `false` hasta que Wompi esté desplegado y con llaves. En `false` no hay cobro en línea.
 - `pagoAlRecibir`: déjalo en `true`. Así se puede pagar en efectivo o por transferencia al recibir.
+- `instalable`: en `true` la tienda se puede instalar como app y registra el service worker. En `false` quita el worker, borra sus cachés y esconde los botones de instalación.
 - `whatsappPrueba` y `whatsappPedidos`: el número de prueba y el de la droguería, en formato `57` + celular, sin signos.
 - Nombre, dirección, horario, cobertura, Instagram y datos legales (`razonSocial`, `nit`, `regente`). Lo que siga en `Por confirmar` se ve así en el pie.
 
@@ -68,3 +69,15 @@ Hoy el pago en línea se muestra apagado, con la etiqueta Próximamente, y no ha
 4. Después de eso, y solo después, pon `pagoEnLinea` en `true` en `js/config.js`. `pagoAlRecibir` puede seguir en `true`.
 
 Los datos de la tarjeta se escriben en la pantalla de Wompi, nunca en esta tienda.
+
+## Instalar la app
+
+Con `instalable` en `true`, el sitio ofrece el botón Instalar app en el menú, el pie, la confirmación del pedido y Mis pedidos.
+
+- Android o computador con Chrome o Edge: abre la tienda publicada, espera a que cargue y toca Instalar app. El navegador pide confirmación y agrega el acceso directo.
+- iPhone o iPad: toca Instalar app y sigue los tres pasos (Compartir, Agregar a pantalla de inicio, Agregar). Si la página está abierta dentro de Instagram, Facebook, TikTok u otra app, primero ábrela en Safari o Chrome.
+- Para probar en el computador también sirve Chrome, con el sitio servido por HTTPS o en `localhost`. En el panel Aplicación deben verse el manifiesto, los íconos y el service worker activo.
+
+La app guarda el cascarón en cachés que empiezan por `reina-`. Al publicar un cambio grande, sube el número de `reina-shell-vN` y `reina-img-vN` en `sw.js`. Quien ya tenga la app abierta ve el aviso “Hay una versión nueva” y, al tocar Actualizar, carga esa versión. Las cachés viejas de ese prefijo se borran solas.
+
+Si algún día la tienda sale de GitHub Pages a un dominio propio, cambia en `manifest.webmanifest` el `id`, el `scope` y el `start_url` para que apunten a ese origen. El `id` tiene que ser único y quedar dentro del `scope`. Hoy el `id` es `/Farmacias-Reina/` porque ese dominio de GitHub Pages también aloja otras páginas.

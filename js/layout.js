@@ -10,6 +10,7 @@ import { iniciarBusqueda } from "./buscar.js";
 import { supabase } from "./supabase.js";
 import { cambiosDeEstado, esActivo, fusionarEstados, interpretarPedido, leerPedidosLocal, pedidoActivoReciente, reemplazarPedidosLocal, textoFranja } from "./pedidos.js";
 import { COLUMNAS, estadoVacio, tarjetaCorta } from "./ui-producto.js";
+import { iniciarPwa } from "./pwa.js";
 
 let configActual = { domicilio: 0, pedido_minimo: 0, abierto: true };
 let soltarFoco = null;
@@ -716,6 +717,7 @@ export function iniciarLayout() {
       if (document.visibilityState === "visible") vigilarPedidos();
     });
   }
+  iniciarPwa();
   leerConfig().then((cfg) => {
     configActual = cfg;
     mostrarCierre(cfg.abierto);

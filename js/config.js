@@ -3,6 +3,7 @@ export const negocio = {
   modoPrueba: true,
   pagoEnLinea: false,
   pagoAlRecibir: true,
+  instalable: true,
   whatsappPrueba: "573108813365",
   whatsappPedidos: "573003664793",
   slogan: "Medicamentos de calidad a los mejores precios",

@@ -1,0 +1,77 @@
+{
+  "id": "/Farmacias-Reina/",
+  "name": "Droguerías Reina",
+  "short_name": "Reina",
+  "description": "Pide medicamentos y productos de cuidado con domicilio a Funza y Mosquera",
+  "lang": "es-CO",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "theme_color": "#0077D5",
+  "background_color": "#FFFFFF",
+  "categories": ["shopping", "health"],
+  "icons": [
+    {
+      "src": "assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Mis pedidos",
+      "short_name": "Pedidos",
+      "url": "./mis-pedidos.html",
+      "icons": [
+        {
+          "src": "assets/icons/shortcut-pedidos.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Buscar",
+      "short_name": "Buscar",
+      "url": "./index.html#buscar",
+      "icons": [
+        {
+          "src": "assets/icons/shortcut-buscar.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "assets/icons/captura-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Inicio de Droguerías Reina"
+    },
+    {
+      "src": "assets/icons/captura-narrow.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Inicio de Droguerías Reina en el celular"
+    }
+  ]
+}

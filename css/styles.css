@@ -1682,3 +1682,106 @@ mark { background: #fde68a; color: inherit; border-radius: 4px; padding: 0 2px; 
   .sug:hover, .sug-hist:hover, .filtro-chip:hover, .fav:hover, .fav-nav:hover { background: var(--blue-soft); }
   .fav.is-on:hover { background: #ffe4e6; }
 }
+
+.section-nav .instalar-nav {
+  border: 0;
+  background: transparent;
+  color: var(--blue-ink);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  padding: 4px 0 8px;
+  cursor: pointer;
+}
+.instalar-pie { margin-top: 8px; }
+.instalar-tarjeta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 16px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+}
+.instalar-tarjeta img { width: 48px; height: 48px; border-radius: 12px; flex: 0 0 auto; }
+.instalar-tarjeta p { font-weight: 800; margin-bottom: 8px; }
+.instalar-pedido { display: grid; gap: 8px; margin-top: 12px; }
+.instalar-pedido p { font-weight: 700; }
+.toast-actualizacion {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
+  border-radius: 18px;
+}
+.toast-actualizacion p { margin: 0; }
+.toast-actualizacion .btn { min-height: 36px; color: white; }
+.instalar-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(15, 23, 42, 0.46);
+}
+.instalar-sheet {
+  position: fixed;
+  z-index: 80;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  gap: 12px;
+  max-height: min(92dvh, 640px);
+  overflow: auto;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  border-radius: 22px 22px 0 0;
+  background: #fff;
+  box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.12);
+}
+.instalar-cerrar { justify-self: end; }
+.instalar-logo { width: 64px; height: 64px; border-radius: 16px; }
+.instalar-ventajas, .instalar-pasos { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.instalar-ventajas li { color: var(--text); }
+.instalar-pasos li { display: flex; align-items: center; gap: 12px; }
+.instalar-ico {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--blue-soft);
+  color: var(--blue-ink);
+}
+.instalar-ico svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.instalar-luego { color: var(--blue-ink); font-weight: 700; justify-self: center; }
+.instalar-sheet .btn { width: 100%; }
+.offline-pagina { min-height: 100dvh; display: grid; place-items: center; padding: 24px; }
+.offline-caja { display: grid; justify-items: center; gap: 12px; text-align: center; max-width: 28rem; }
+.offline-caja img { width: 96px; height: 96px; border-radius: 22px; }
+.offline-caja h1 { font-size: 1.6rem; }
+.offline-caja p { color: var(--muted); }
+html.app-instalada body { overscroll-behavior: none; }
+html.app-instalada .header {
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+html.app-instalada .tabbar {
+  padding-bottom: calc(6px + env(safe-area-inset-bottom));
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+html.app-instalada .admin-link,
+html.app-instalada [data-instalar],
+html.app-instalada [data-instalar-tarjeta],
+html.app-instalada [data-instalar-pedido],
+html.app-instalada .instalar-overlay { display: none !important; }
+@media (min-width: 720px) {
+  .instalar-sheet {
+    left: 50%;
+    right: auto;
+    width: min(440px, calc(100% - 24px));
+    transform: translateX(-50%);
+  }
+}

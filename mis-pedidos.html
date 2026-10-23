@@ -28,7 +28,13 @@
   <link rel="icon" href="assets/logo/favicon-32.png" type="image/png" sizes="32x32">
   <link rel="icon" href="assets/logo/favicon-48.png" type="image/png" sizes="48x48">
   <link rel="icon" href="assets/logo/favicon-32.webp" type="image/webp" sizes="32x32">
-  <link rel="apple-touch-icon" href="assets/logo/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta http-equiv="Content-Security-Policy" content="manifest-src 'self'; worker-src 'self'">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Reina">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
   <link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" as="image" href="assets/logo/logo-192.webp" type="image/webp" fetchpriority="high">
   <link rel="stylesheet" href="css/styles.css">
@@ -67,6 +73,13 @@
 
   <main id="contenido" class="container page">
     <h1>Mis pedidos</h1>
+    <aside class="instalar-tarjeta" data-instalar-tarjeta hidden>
+      <img src="assets/icons/icon-192.png" width="48" height="48" alt="">
+      <div>
+        <p>Instala Droguerías Reina</p>
+        <button type="button" class="btn btn-primary" data-instalar>Instalar app</button>
+      </div>
+    </aside>
     <p class="hint" data-pedido-ayuda hidden>Actualizamos el estado cada 30 segundos mientras esta pestaña está visible.</p>
     <p class="callout" data-pedido-nota hidden role="status"></p>
     <div class="pedido-lista" data-lista-pedidos></div>
