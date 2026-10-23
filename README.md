@@ -12,6 +12,7 @@ Ahí vive lo que no sale de Supabase:
 - `instalable`: en `true` la tienda se puede instalar como app y registra el service worker. En `false` quita el worker, borra sus cachés y esconde los botones de instalación.
 - `whatsappPrueba` y `whatsappPedidos`: el número de prueba y el de la droguería, en formato `57` + celular, sin signos.
 - Nombre, dirección, horario, cobertura, Instagram y datos legales (`razonSocial`, `nit`, `regente`). Lo que siga en `Por confirmar` se ve así en el pie.
+- `negocio.legal`: razón social, NIT, domicilio, teléfono, correos, regente, registro sanitario, RNBD, pasarela, versión y vigencia de la política, plazos y festivos (`AAAA-MM-DD`). Lo que quede vacío se muestra como “Por confirmar” en las páginas legales.
 
 No pongas llaves de Wompi en este archivo. El navegador no las necesita.
 
@@ -57,7 +58,8 @@ Los dos montos son pesos colombianos y se leen de la fila `config` de Supabase (
 3. Revisa domicilio y pedido mínimo en Ajustes.
 4. Haz un pedido de prueba de punta a punta: catálogo, pago al recibir, Mis pedidos y WhatsApp.
 5. Deja `pagoEnLinea` en `false` y `pagoAlRecibir` en `true`.
-6. Cambia `modoPrueba` a `false`. Con eso los botones de WhatsApp pasan al número de pedidos y las páginas públicas dejan de llevar `noindex`. El panel, el acceso interno y la página 404 siguen en `noindex`.
+6. Completa `negocio.legal` y, antes de salir de modo prueba, ejecuta `node tools/verificar-legal.mjs`. Con `modoPrueba` en `true` lista los campos vacíos y termina bien. Con `modoPrueba` en `false` termina con error y nombra cada campo legal vacío. Si cambias el texto de una política, actualiza `versionPolitica` y el campo Versión de la política en Ajustes.
+7. Cambia `modoPrueba` a `false`. Con eso los botones de WhatsApp pasan al número de pedidos y las páginas públicas dejan de llevar `noindex`. El panel, el acceso interno y la página 404 siguen en `noindex`.
 
 ## Activar Wompi más adelante
 

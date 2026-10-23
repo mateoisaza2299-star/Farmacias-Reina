@@ -979,6 +979,10 @@ async function pintarDetalle(id) {
         el("a", { class: "btn btn-neutro", href: enlaceMaps(pedido), target: "_blank", rel: "noopener noreferrer" }, ico("pin"), el("span", {}, "Abrir en Maps"))
       ),
       pedido.notas ? el("p", {}, `Indicaciones: ${pedido.notas}`) : el("p", { class: "muted" }, "Sin indicaciones"),
+      el("h3", {}, "Autorización"),
+      el("p", {}, `Versión de la política: ${String(pedido.politica_version || "").trim() || "Sin registro"}`),
+      el("p", {}, `Autorización de datos: ${fechaHora(pedido.autorizo_datos_en) || "Sin registro"}`),
+      String(pedido.formula_path || "").trim() || pedido.autorizo_formula_en ? el("p", {}, `Autorización de la fórmula: ${fechaHora(pedido.autorizo_formula_en) || "Sin registro"}`) : null,
       el("label", { class: "campo" }, "Domiciliario", select),
       el("label", { class: "campo" }, "Nota interna", nota),
       btn("Guardar nota", "btn-neutro", "check", {
@@ -1406,7 +1410,8 @@ async function cargarDomiciliarios() {
 }
 
 async function leerConfigFila() {
-  let respuesta = await supabase.from("config").select("id,domicilio,pedido_minimo,abierto,aviso,tiempo_entrega").limit(1).maybeSingle();
+  let respuesta = await supabase.from("config").select("id,domicilio,pedido_minimo,abierto,aviso,tiempo_entrega,politica_version").limit(1).maybeSingle();
+  if (respuesta.error) respuesta = await supabase.from("config").select("id,domicilio,pedido_minimo,abierto,aviso,tiempo_entrega").limit(1).maybeSingle();
   if (respuesta.error) respuesta = await supabase.from("config").select("id,domicilio,pedido_minimo,abierto").limit(1).maybeSingle();
   if (respuesta.error || !respuesta.data) throw respuesta.error || new Error("No encontramos la configuración.");
   configFila = respuesta.data;
@@ -2170,6 +2175,7 @@ async function cargarAjustes() {
     form.abierto.checked = data.abierto !== false;
     form.aviso.value = data.aviso || "";
     form.tiempo_entrega.value = data.tiempo_entrega ?? "";
+    form.politica_version.value = data.politica_version ?? "";
     aviso.hidden = true;
   } catch (error) {
     aviso.hidden = false;
@@ -2187,6 +2193,7 @@ function armarAjustes() {
     campo("Pedido mínimo", el("input", { name: "pedido_minimo", type: "number", min: "0", step: "100", required: true })),
     campo("Aviso de la tienda", el("textarea", { name: "aviso", rows: "3", maxlength: "280" })),
     campo("Tiempo de entrega", el("input", { name: "tiempo_entrega", maxlength: "80" })),
+    campo("Versión de la política", el("input", { name: "politica_version", maxlength: "40", autocomplete: "off" })),
     el("label", { class: "switch" }, el("input", { type: "checkbox", name: "abierto" }), el("span", { class: "switch-ui", "aria-hidden": "true" }), el("span", {}, "Recibiendo pedidos")),
     btn("Guardar ajustes", "btn-principal btn-lg", "check", { type: "submit" })
   );
@@ -2200,20 +2207,23 @@ function armarAjustes() {
       aviso.textContent = "Revisa el domicilio y el pedido mínimo.";
       return;
     }
-    const patch = {
+    const base = {
       domicilio,
       pedido_minimo: minimo,
-      abierto: form.abierto.checked,
-      aviso: form.aviso.value.trim(),
-      tiempo_entrega: form.tiempo_entrega.value.trim()
+      abierto: form.abierto.checked
     };
+    const extra = {
+      aviso: form.aviso.value.trim(),
+      tiempo_entrega: form.tiempo_entrega.value.trim(),
+      politica_version: form.politica_version.value.trim()
+    };
+    const patch = { ...base, ...extra };
     let respuesta = await supabase.from("config").update(patch).eq("id", form.dataset.id || configFila?.id || 1);
     if (respuesta.error) {
-      respuesta = await supabase.from("config").update({
-        domicilio,
-        pedido_minimo: minimo,
-        abierto: form.abierto.checked
-      }).eq("id", form.dataset.id || configFila?.id || 1);
+      respuesta = await supabase.from("config").update({ ...base, aviso: extra.aviso, tiempo_entrega: extra.tiempo_entrega }).eq("id", form.dataset.id || configFila?.id || 1);
+    }
+    if (respuesta.error) {
+      respuesta = await supabase.from("config").update(base).eq("id", form.dataset.id || configFila?.id || 1);
     }
     if (respuesta.error) {
       aviso.hidden = false;

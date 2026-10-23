@@ -128,13 +128,51 @@ function mensajeCampo(input, datos) {
   if (input.name === "barrio") return input.value.trim().length >= 2 ? "" : "Escribe el barrio de entrega.";
   if (input.name === "politica") return input.checked ? "" : "Debes aceptar la política de tratamiento de datos.";
   if (input.name === "formula") return datos?.requiereFormula ? validarArchivo(input.files?.[0]) : "";
-  if (input.name === "salud") return datos?.requiereFormula ? (input.checked ? "" : "Necesitamos tu autorización para tratar la fórmula como dato de salud.") : "";
+  if (input.name === "salud") return datos?.requiereFormula ? (input.checked ? "" : "Necesitamos tu autorización expresa para tratar la fórmula médica.") : "";
+  if (input.name === "formula-adulta" || input.name === "formula-menor") {
+    if (!datos?.requiereFormula) return "";
+    return titularElegido() ? "" : "Indica si la fórmula es tuya o de un adulto, o declara ser el representante legal del menor.";
+  }
   return "";
 }
 
+function titularElegido() {
+  return Boolean(campo("formula-adulta")?.checked) !== Boolean(campo("formula-menor")?.checked);
+}
+
+function formulaAutorizada() {
+  return Boolean(campo("salud")?.checked && titularElegido());
+}
+
+function excluirTitular(origen) {
+  const adulta = campo("formula-adulta");
+  const menor = campo("formula-menor");
+  if (origen === adulta && adulta?.checked && menor?.checked) menor.checked = false;
+  if (origen === menor && menor?.checked && adulta?.checked) adulta.checked = false;
+}
+
+function bloquearFormula() {
+  const input = campo("formula");
+  const aviso = document.querySelector("[data-formula-bloqueo]");
+  const lista = formulaAutorizada();
+  if (aviso) aviso.hidden = lista;
+  if (!input) return;
+  input.disabled = !lista;
+  if (!lista && input.value) {
+    input.value = "";
+    const nombre = document.querySelector("[data-archivo]");
+    if (nombre) nombre.textContent = "";
+  }
+}
+
 function marcar(input, mensaje) {
-  const ayuda = document.getElementById(`${input.name}-error`);
-  input.setAttribute("aria-invalid", mensaje ? "true" : "false");
+  const grupo = input.name === "formula-adulta" || input.name === "formula-menor";
+  const ayuda = document.getElementById(grupo ? "titular-error" : `${input.name}-error`);
+  const nodos = grupo ? [campo("formula-adulta"), campo("formula-menor")] : [input];
+  nodos.forEach((nodo) => {
+    if (!nodo) return;
+    nodo.setAttribute("aria-invalid", mensaje ? "true" : "false");
+  });
   if (ayuda) {
     ayuda.hidden = !mensaje;
     ayuda.textContent = mensaje || "";
@@ -151,17 +189,22 @@ function validarFormulario(datos) {
   const politica = campo("politica");
   const salud = campo("salud");
   const archivo = campo("formula");
+  const adulta = campo("formula-adulta");
   ok = marcar(nombre, mensajeCampo(nombre, datos)) && ok;
   ok = marcar(telefono, mensajeCampo(telefono, datos)) && ok;
   ok = marcar(direccion, mensajeCampo(direccion, datos)) && ok;
   ok = marcar(barrio, mensajeCampo(barrio, datos)) && ok;
   ok = marcar(politica, mensajeCampo(politica, datos)) && ok;
   if (datos.requiereFormula) {
-    ok = marcar(archivo, mensajeCampo(archivo, datos)) && ok;
-    ok = marcar(salud, mensajeCampo(salud, datos)) && ok;
+    const saludOk = marcar(salud, mensajeCampo(salud, datos));
+    const titularOk = adulta ? marcar(adulta, mensajeCampo(adulta, datos)) : false;
+    ok = saludOk && titularOk && ok;
+    if (saludOk && titularOk) ok = marcar(archivo, mensajeCampo(archivo, datos)) && ok;
+    else marcar(archivo, "");
   } else {
     marcar(archivo, "");
     marcar(salud, "");
+    if (adulta) marcar(adulta, "");
   }
   ok = validarPago() && ok;
   if (!ok) mostrarError("Revisa los campos marcados para continuar.");
@@ -365,6 +408,10 @@ async function enviar(evento) {
     return;
   }
   if (!validarFormulario(datos)) return;
+  if (datos.requiereFormula && !formulaAutorizada()) {
+    mostrarError("Revisa los campos marcados para continuar.");
+    return;
+  }
   const forma = formaElegida();
   const enLinea = forma === "EN_LINEA";
   const notas = campo("indicaciones").value.trim();
@@ -373,7 +420,15 @@ async function enviar(evento) {
   pintarResumen();
   let ruta = null;
   try {
-    if (datos.requiereFormula) ruta = await subirFormula(campo("formula").files[0]);
+    if (datos.requiereFormula) {
+      if (!formulaAutorizada()) {
+        enviando = false;
+        pintarResumen();
+        mostrarError("Revisa los campos marcados para continuar.");
+        return;
+      }
+      ruta = await subirFormula(campo("formula").files[0]);
+    }
     const { data, error } = await supabase.rpc("crear_pedido", {
       p_items: itemsParaPedido(),
       p_nombre: campo("nombre").value.trim(),
@@ -442,6 +497,11 @@ function escucharArchivo() {
   const input = campo("formula");
   const nombre = document.querySelector("[data-archivo]");
   input?.addEventListener("change", () => {
+    if (!formulaAutorizada()) {
+      input.value = "";
+      if (nombre) nombre.textContent = "";
+      return;
+    }
     const archivo = input.files[0];
     const error = archivo ? validarArchivo(archivo) : "";
     if (error && archivo) {
@@ -473,7 +533,7 @@ function restaurarDatos() {
 }
 
 function prepararValidacion() {
-  ["nombre", "telefono", "direccion", "barrio", "politica", "formula", "salud"].forEach((nombre) => {
+  ["nombre", "telefono", "direccion", "barrio", "politica", "formula", "salud", "formula-adulta", "formula-menor"].forEach((nombre) => {
     const input = campo(nombre);
     if (!input) return;
     const correr = () => {
@@ -488,10 +548,13 @@ function prepararValidacion() {
     });
     input.addEventListener("input", correr);
     input.addEventListener("change", () => {
+      if (input.name === "formula-adulta" || input.name === "formula-menor") excluirTitular(input);
+      bloquearFormula();
       input.dataset.tocado = "1";
       correr();
     });
   });
+  bloquearFormula();
 }
 
 function iniciarCheckout() {

@@ -25,7 +25,25 @@ export const negocio = {
   instagramUsuario: "@droguerias.reina",
   maps: "https://www.google.com/maps/search/?api=1&query=Calle+13+No.+11-06,+Funza,+Cundinamarca",
   mapsEmbed: "https://maps.google.com/maps?q=Calle+13+No.+11-06,+Funza,+Cundinamarca&hl=es&z=16&output=embed",
-  sitio: "https://mateoisaza2299-star.github.io/Farmacias-Reina/"
+  sitio: "https://mateoisaza2299-star.github.io/Farmacias-Reina/",
+  legal: {
+    razonSocial: "",
+    nit: "",
+    nombreComercial: "Droguerías Reina",
+    domicilio: "Calle 13 No. 11-06, Funza, Cundinamarca",
+    telefono: "300 366 4793",
+    correoDatos: "",
+    areaDatos: "",
+    regente: "",
+    registroSanitario: "",
+    rnbd: "",
+    pasarela: "Wompi",
+    versionPolitica: "1.0",
+    fechaVigencia: "2026-10-23",
+    retencionFormulaDias: 30,
+    plazoReclamoDias: "",
+    festivos: []
+  }
 };
 
 export const categorias = [

@@ -157,21 +157,35 @@
           <section class="formula-box" data-formula hidden>
             <h2>Fórmula médica</h2>
             <p>Tu pedido incluye productos que requieren fórmula. La revisa el regente de farmacia antes del despacho. Es un dato de salud y solo se usa para validar este pedido.</p>
+            <label class="check">
+              <input name="salud" type="checkbox" aria-describedby="salud-error">
+              <span>Autorizo de forma expresa e informada el tratamiento de mi fórmula médica, que es un dato sensible, únicamente para que el regente de farmacia valide este pedido. Sé que no estoy obligado a autorizarlo, pero sin ella no es posible comprar medicamentos que la requieren.</span>
+            </label>
+            <p class="field-error" id="salud-error" hidden></p>
+            <fieldset class="formula-titular" aria-describedby="titular-error">
+              <legend>Titular de la fórmula</legend>
+              <label class="check">
+                <input name="formula-adulta" type="checkbox" aria-describedby="titular-error">
+                <span>La fórmula es mía o de un adulto</span>
+              </label>
+              <label class="check">
+                <input name="formula-menor" type="checkbox" aria-describedby="titular-error">
+                <span>Si la fórmula es de un menor de edad, declaro ser su representante legal.</span>
+              </label>
+            </fieldset>
+            <p class="field-error" id="titular-error" hidden></p>
+            <p class="hint" id="formula-bloqueo" data-formula-bloqueo>Marca las autorizaciones de arriba para adjuntar la fórmula.</p>
             <label>Foto o PDF de la fórmula
-              <input name="formula" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" aria-describedby="formula-error">
+              <input name="formula" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" aria-describedby="formula-bloqueo formula-error" disabled>
             </label>
             <p class="hint" data-archivo></p>
             <p class="hint">JPG, PNG, WEBP o PDF. Máximo 5 MB.</p>
             <p class="field-error" id="formula-error" hidden></p>
-            <label class="check">
-              <input name="salud" type="checkbox" aria-describedby="salud-error">
-              <span>Autorizo el tratamiento de esta fórmula como dato de salud para que el regente de farmacia la revise y pueda dispensarse el medicamento.</span>
-            </label>
-            <p class="field-error" id="salud-error" hidden></p>
           </section>
+          <p class="aviso-datos" id="aviso-datos"><span class="legal-pendiente" data-legal="nombreComercial">Por confirmar</span> (<span class="legal-pendiente" data-legal="razonSocial">Por confirmar</span>, NIT <span class="legal-pendiente" data-legal="nit">Por confirmar</span>) tratará tu nombre, celular y dirección para gestionar y entregar tu pedido y contactarte por WhatsApp o teléfono sobre él. Puedes conocer, actualizar, rectificar y suprimir tus datos y revocar tu autorización escribiendo a <span class="legal-pendiente" data-legal="correoDatos">Por confirmar</span>. Lee la Política de Tratamiento de Datos Personales completa <a href="tratamiento-datos.html" target="_blank" rel="noopener noreferrer">aquí<span class="sr"> (se abre en una pestaña nueva)</span></a>.</p>
           <label class="check">
             <input name="politica" type="checkbox" aria-describedby="politica-error">
-            <span>Acepto la <a href="privacidad.html">política de tratamiento de datos personales</a>.</span>
+            <span>He leído la <a href="tratamiento-datos.html" target="_blank" rel="noopener noreferrer">Política de Tratamiento de Datos Personales<span class="sr"> (se abre en una pestaña nueva)</span></a> y autorizo el tratamiento de mi nombre, celular y dirección para gestionar mi pedido.</span>
           </label>
           <p class="field-error" id="politica-error" hidden></p>
           <label class="check">
@@ -241,8 +255,10 @@
       </section>
       <section>
         <h2>Información</h2>
-        <a href="terminos.html">Términos y condiciones</a>
+        <a href="tratamiento-datos.html">Política de tratamiento de datos</a>
         <a href="privacidad.html">Política de privacidad</a>
+        <a href="cookies.html">Política de cookies</a>
+        <a href="terminos.html">Términos y condiciones</a>
         <a href="devoluciones.html">Cambios y devoluciones</a>
         <a href="mis-pedidos.html" data-mis-pedidos>Mis pedidos<span class="pedido-aviso" data-pedidos-aviso hidden></span></a>
         <a href="seguimiento.html">Seguir un pedido</a>

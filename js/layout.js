@@ -1,4 +1,5 @@
 import { negocio, categorias, AVISO_CERRADO } from "./config.js";
+import { aplicarLegal } from "./legal.js";
 import { leerConfig } from "./datos.js";
 import { contarCarrito, fijarCantidad, quitarProducto, resumenCarrito, vaciarCarrito } from "./cart.js";
 import { dinero, estadoHorario, marcaVisible } from "./format.js";
@@ -680,6 +681,7 @@ async function vigilarPedidos() {
 }
 
 export function iniciarLayout() {
+  aplicarLegal();
   medirHeader();
   llenarNegocio();
   aplicarTextosPago();
