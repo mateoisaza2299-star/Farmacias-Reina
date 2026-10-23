@@ -1,5 +1,5 @@
 import { supabase } from "./admin-cliente.js";
-import { sesionAdmin } from "./acceso.js";
+import { cerrarSesionLocal, codigoAcceso, destinoAcceso, estadoAcceso, ir } from "./acceso.js";
 import { categorias, negocio } from "./config.js";
 import { el } from "./dom.js";
 import { icono } from "./icons.js";
@@ -193,9 +193,12 @@ function esqueleto(tipo = "") {
 }
 
 function conIcono(boton, nombre) {
-  boton.querySelector("svg")?.remove();
-  const texto = boton.querySelector(".util-texto");
-  boton.insertBefore(ico(nombre), texto);
+  if (!boton) return;
+  boton.querySelector(":scope > svg")?.remove();
+  const iconoNodo = ico(nombre);
+  const texto = boton.querySelector(":scope > .util-texto");
+  if (texto) boton.insertBefore(iconoNodo, texto);
+  else boton.prepend(iconoNodo);
 }
 
 function hojaDe(id, ancha = false) {
@@ -1492,8 +1495,8 @@ function pintarPreferencias() {
   const tema = document.documentElement.dataset.tema === "oscuro";
   const compacta = document.documentElement.dataset.densidad === "compacta";
   const sonido = pref("sonido", "1") === "1";
-  const botonTema = document.querySelector("[data-tema]");
-  const botonDensidad = document.querySelector("[data-densidad]");
+  const botonTema = document.querySelector("button[data-tema]");
+  const botonDensidad = document.querySelector("button[data-densidad]");
   const botonSonido = document.querySelector("[data-sonido]");
   botonTema.querySelector(".util-texto").textContent = tema ? "Oscuro" : "Claro";
   botonTema.setAttribute("aria-label", tema ? "Cambiar a modo claro" : "Cambiar a modo oscuro");
@@ -2296,13 +2299,13 @@ function armar() {
     guardarPref("sonido", pref("sonido", "1") === "1" ? "0" : "1");
     pintarPreferencias();
   });
-  document.querySelector("[data-tema]").addEventListener("click", () => {
+  document.querySelector("button[data-tema]").addEventListener("click", () => {
     const siguiente = document.documentElement.dataset.tema === "oscuro" ? "claro" : "oscuro";
     document.documentElement.dataset.tema = siguiente;
     guardarPref("tema", siguiente);
     pintarPreferencias();
   });
-  document.querySelector("[data-densidad]").addEventListener("click", () => {
+  document.querySelector("button[data-densidad]").addEventListener("click", () => {
     const siguiente = document.documentElement.dataset.densidad === "compacta" ? "comoda" : "compacta";
     document.documentElement.dataset.densidad = siguiente;
     guardarPref("densidad", siguiente);
@@ -2353,14 +2356,67 @@ function armar() {
   programar();
 }
 
+function mostrarFalloPanel(codigo) {
+  const corto = String(codigo || "error").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 24) || "error";
+  console.error(corto);
+  const espera = document.querySelector("[data-wait]");
+  const app = document.querySelector("[data-app]");
+  if (app) app.hidden = true;
+  if (espera) {
+    espera.hidden = false;
+    espera.textContent = "No pudimos abrir el panel";
+  }
+  let caja = document.querySelector("[data-fallo-panel]");
+  if (!caja) {
+    caja = document.createElement("div");
+    caja.className = "espera";
+    caja.dataset.falloPanel = "true";
+    const detalle = document.createElement("p");
+    detalle.dataset.falloCodigo = "true";
+    const acciones = document.createElement("div");
+    acciones.className = "acciones-inline";
+    const reintentar = document.createElement("button");
+    reintentar.type = "button";
+    reintentar.className = "btn btn-principal";
+    reintentar.textContent = "Reintentar";
+    reintentar.addEventListener("click", () => location.reload());
+    const salirFallo = document.createElement("button");
+    salirFallo.type = "button";
+    salirFallo.className = "btn btn-peligro";
+    salirFallo.textContent = "Cerrar sesión";
+    salirFallo.addEventListener("click", async () => {
+      await cerrarSesionLocal();
+      location.href = "admin-login.html";
+    });
+    acciones.append(reintentar, salirFallo);
+    caja.append(detalle, acciones);
+    (espera || document.body).after(caja);
+  }
+  const detalle = caja.querySelector("[data-fallo-codigo]");
+  if (detalle) detalle.textContent = corto;
+  caja.hidden = false;
+}
+
 async function iniciar() {
+  let resultado;
   try {
-    const sesion = await sesionAdmin();
-    if (!sesion.ok) {
-      location.href = sesion.aal ? "admin-login.html?aviso=verificacion" : "admin-login.html";
-      return;
-    }
-    usuario = sesion.user;
+    resultado = await estadoAcceso();
+  } catch (error) {
+    mostrarFalloPanel(codigoAcceso(error));
+    return;
+  }
+  const ruta = destinoAcceso(resultado.estado);
+  if (ruta.destino === "login") {
+    const aviso = ruta.aviso ? `?aviso=${ruta.aviso}` : "";
+    await ir(`admin-login.html${aviso}`, resultado.estado);
+    return;
+  }
+  if (ruta.destino !== "panel") {
+    mostrarFalloPanel(resultado.detalle || "error");
+    return;
+  }
+  try {
+    usuario = resultado.usuario;
     document.querySelector("[data-wait]").hidden = true;
     document.querySelector("[data-app]").hidden = false;
     armar();
@@ -2368,8 +2424,8 @@ async function iniciar() {
     if (seccion === "inicio") await cargarResumen();
     pintarInicioVivo();
     pintarContadores();
-  } catch {
-    location.href = "admin-login.html";
+  } catch (error) {
+    mostrarFalloPanel(codigoAcceso(error));
   }
 }
 

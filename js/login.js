@@ -1,7 +1,7 @@
 import "./motion.js";
 import { supabase } from "./admin-cliente.js";
 import { mensajeAuth } from "./format.js";
-import { esAdmin, factorPendiente } from "./acceso.js";
+import { cerrarSesionLocal, destinoAcceso, estadoAcceso, ir, tomarFreno } from "./acceso.js";
 import { marcaLogo } from "./icons.js";
 import { negocio } from "./config.js";
 
@@ -17,6 +17,7 @@ const aviso = document.querySelector("[data-login-error]");
 const pasoClave = document.querySelector("[data-paso='clave']");
 const pasoCodigo = document.querySelector("[data-paso='codigo']");
 const boton = document.querySelector("[data-entrar]");
+const avisoUrl = new URLSearchParams(location.search).get("aviso");
 let factorId = "";
 
 function mostrar(texto) {
@@ -34,40 +35,103 @@ function mostrarPaso(nombre) {
   if (codigo) pasoCodigo.querySelector("input")?.focus();
 }
 
-const avisoUrl = new URLSearchParams(location.search).get("aviso");
-if (avisoUrl === "acceso") mostrar("Esta cuenta no tiene acceso al panel.");
-if (avisoUrl === "inactividad") mostrar("Cerramos la sesión por inactividad.");
-if (avisoUrl === "verificacion") mostrar("Confirma el código de verificación para entrar.");
+function botonReintentar() {
+  let nodo = document.querySelector("[data-reintentar]");
+  if (nodo) return nodo;
+  nodo = document.createElement("button");
+  nodo.type = "button";
+  nodo.className = "btn btn-ghost";
+  nodo.dataset.reintentar = "true";
+  nodo.textContent = "Reintentar";
+  nodo.hidden = true;
+  nodo.addEventListener("click", () => aplicarEstado());
+  aviso?.after(nodo);
+  return nodo;
+}
 
-async function entrarSiAdmin(user) {
-  const { data: filas, error } = await supabase.from("admins").select("*").limit(20);
-  if (error || !esAdmin(filas, user)) {
-    await supabase.auth.signOut();
+function mostrarReintentar(visible) {
+  const nodo = botonReintentar();
+  nodo.hidden = !visible;
+}
+
+function restaurarEntrar() {
+  if (!boton) return;
+  boton.disabled = false;
+  boton.textContent = "Entrar";
+}
+
+function avisoDeUrl() {
+  if (avisoUrl === "acceso") mostrar("Esta cuenta no tiene acceso al panel.");
+  if (avisoUrl === "inactividad") mostrar("Cerramos la sesión por inactividad.");
+  if (avisoUrl === "verificacion") mostrar("Confirma el código de verificación para entrar.");
+}
+
+function mensajeFreno(motivo) {
+  const corto = motivo ? ` ${motivo}` : "";
+  return `No pudimos iniciar sesión. Intenta de nuevo.${corto}`;
+}
+
+async function aplicarEstado() {
+  const freno = tomarFreno();
+  if (freno) {
+    await cerrarSesionLocal();
+    mostrar(mensajeFreno(freno));
+    mostrarPaso("clave");
+    mostrarReintentar(false);
+    restaurarEntrar();
+    return;
+  }
+  let resultado;
+  try {
+    resultado = await estadoAcceso();
+  } catch {
+    mostrar(mensajeFreno("error"));
+    mostrarPaso("clave");
+    mostrarReintentar(true);
+    restaurarEntrar();
+    return;
+  }
+  const ruta = destinoAcceso(resultado.estado);
+  if (ruta.destino === "panel") {
+    const permitido = await ir("admin.html", "ok");
+    if (!permitido) {
+      mostrar(mensajeFreno(tomarFreno() || "bucle"));
+      mostrarPaso("clave");
+      mostrarReintentar(false);
+      restaurarEntrar();
+    }
+    return;
+  }
+  if (resultado.estado === "necesita-mfa") {
+    factorId = resultado.factorId || "";
+    mostrarPaso("codigo");
+    mostrarReintentar(!factorId);
+    if (!factorId) mostrar("No pudimos comprobar la verificación en dos pasos.");
+    else if (avisoUrl === "verificacion") mostrar("Confirma el código de verificación para entrar.");
+    else mostrar("");
+    restaurarEntrar();
+    return;
+  }
+  if (resultado.estado === "no-admin") {
+    await cerrarSesionLocal();
     mostrar("Esta cuenta no tiene acceso al panel.");
     mostrarPaso("clave");
-    return false;
+    mostrarReintentar(false);
+    restaurarEntrar();
+    return;
   }
-  location.href = "admin.html";
-  return true;
-}
-
-async function exigirFactor() {
-  const pendiente = await factorPendiente();
-  if (pendiente.bloqueado) {
-    mostrar("No pudimos comprobar la verificación en dos pasos.");
-    return true;
+  if (ruta.destino === "error") {
+    mostrar(`No pudimos comprobar el acceso. ${resultado.detalle || "error"}`);
+    mostrarPaso("clave");
+    mostrarReintentar(true);
+    restaurarEntrar();
+    return;
   }
-  if (!pendiente.factor) return false;
-  factorId = pendiente.factor.id;
-  mostrarPaso("codigo");
-  return true;
+  mostrarPaso("clave");
+  mostrarReintentar(false);
+  restaurarEntrar();
+  avisoDeUrl();
 }
-
-supabase.auth.getSession().then(async ({ data }) => {
-  if (!data.session) return;
-  if (await exigirFactor()) return;
-  await entrarSiAdmin(data.session.user);
-});
 
 form?.addEventListener("submit", async (evento) => {
   evento.preventDefault();
@@ -76,6 +140,7 @@ form?.addEventListener("submit", async (evento) => {
     return;
   }
   mostrar("");
+  mostrarReintentar(false);
   const correo = form.email.value.trim();
   const clave = form.password.value;
   if (!correo || !clave) {
@@ -87,25 +152,10 @@ form?.addEventListener("submit", async (evento) => {
   const { error } = await supabase.auth.signInWithPassword({ email: correo, password: clave });
   if (error) {
     mostrar(mensajeAuth(error));
-    boton.disabled = false;
-    boton.textContent = "Entrar";
+    restaurarEntrar();
     return;
   }
-  const { data: { user } } = await supabase.auth.getUser();
-  const { data: filas, error: fallo } = await supabase.from("admins").select("*").limit(20);
-  if (fallo || !esAdmin(filas, user)) {
-    await supabase.auth.signOut();
-    mostrar("Esta cuenta no tiene acceso al panel.");
-    boton.disabled = false;
-    boton.textContent = "Entrar";
-    return;
-  }
-  if (await exigirFactor()) {
-    boton.disabled = false;
-    boton.textContent = "Entrar";
-    return;
-  }
-  location.href = "admin.html";
+  await aplicarEstado();
 });
 
 async function verificar() {
@@ -118,24 +168,23 @@ async function verificar() {
   const botonCodigo = document.querySelector("[data-verificar]");
   botonCodigo.disabled = true;
   try {
-    const reto = await supabase.auth.mfa.challenge({ factorId });
-    if (reto.error) throw reto.error;
-    const ver = await supabase.auth.mfa.verify({ factorId, challengeId: reto.data.id, code: codigo });
+    const ver = await supabase.auth.mfa.challengeAndVerify({ factorId, code: codigo });
     if (ver.error) throw ver.error;
-    const { data: { user } } = await supabase.auth.getUser();
-    await entrarSiAdmin(user);
+    await aplicarEstado();
   } catch (error) {
     mostrar(mensajeAuth(error));
-    botonCodigo.disabled = false;
   }
+  botonCodigo.disabled = false;
 }
 
 document.querySelector("[data-volver]")?.addEventListener("click", async () => {
-  await supabase.auth.signOut();
+  await cerrarSesionLocal();
   factorId = "";
-  if (form.codigo) form.codigo.value = "";
+  if (form?.codigo) form.codigo.value = "";
   mostrar("");
   mostrarPaso("clave");
-  boton.disabled = false;
-  boton.textContent = "Entrar";
+  mostrarReintentar(false);
+  restaurarEntrar();
 });
+
+aplicarEstado();
