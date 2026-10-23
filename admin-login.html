@@ -41,13 +41,23 @@
       <h1>Panel de la droguería</h1>
       <p class="hint">Ingresa con la cuenta del equipo. No hay registro público.</p>
       <p class="form-error" data-login-error role="alert" hidden></p>
-      <label>Correo
-        <input name="email" type="email" autocomplete="username" required>
-      </label>
-      <label>Contraseña
-        <input name="password" type="password" autocomplete="current-password" required>
-      </label>
-      <button class="btn btn-primary" type="submit" data-entrar>Entrar</button>
+      <fieldset data-paso="clave">
+        <label>Correo
+          <input name="email" type="email" autocomplete="username" required>
+        </label>
+        <label>Contraseña
+          <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <button class="btn btn-primary" type="submit" data-entrar>Entrar</button>
+      </fieldset>
+      <fieldset data-paso="codigo" hidden>
+        <p class="hint">Escribe el código de la aplicación de verificación.</p>
+        <label>Código de verificación
+          <input name="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}">
+        </label>
+        <button class="btn btn-primary" type="submit" data-verificar>Verificar</button>
+        <button class="btn btn-ghost" type="button" data-volver>Volver</button>
+      </fieldset>
       <a href="index.html">Volver a la tienda</a>
     </form>
   </main>

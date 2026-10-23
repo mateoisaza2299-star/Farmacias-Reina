@@ -54,7 +54,8 @@ function nombre(url) {
 
 function esAdmin(url) {
   const archivo = nombre(url);
-  return archivo === "admin.html" || archivo === "admin-login.html" || archivo === "admin.js" || archivo === "login.js" || archivo === "acceso.js";
+  if (archivo === "login.js" || archivo === "acceso.js") return true;
+  return /^admin(-[a-z0-9]+)*\.(html|js|css)$/.test(archivo);
 }
 
 function sensible(url) {

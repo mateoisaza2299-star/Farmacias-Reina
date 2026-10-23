@@ -1001,6 +1001,7 @@ body[data-page="admin"] main, body[data-page="login"] { padding: 16px; }
 .login-wrap { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; }
 body[data-page="login"] { padding: 0; display: block; }
 .login-card { width: min(440px, 100%); display: grid; gap: 12px; }
+.login-card fieldset { border: 0; margin: 0; padding: 0; min-inline-size: 0; display: grid; gap: 12px; }
 .login-card .logo { margin-bottom: 8px; }
 input.is-saved { box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.25); }
 
