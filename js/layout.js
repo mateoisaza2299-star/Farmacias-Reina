@@ -6,7 +6,9 @@ import { dinero, estadoHorario, marcaVisible } from "./format.js";
 import { enlaceWhatsapp, numeroWhatsapp } from "./pago.js";
 import { el } from "./dom.js";
 import { icono } from "./icons.js";
-import { animarDinero, lineaEsqueleto, marcarEsqueleto, prepararImagen } from "./motion.js";
+import { animarDinero, lineaEsqueleto, marcarEsqueleto, prepararImagen, reducido } from "./motion.js";
+import { iniciarMicro } from "./micro.js";
+import { iniciarTilt } from "./tilt.js";
 import { iniciarBusqueda } from "./buscar.js";
 import { supabase } from "./supabase.js";
 import { cambiosDeEstado, esActivo, fusionarEstados, interpretarPedido, leerPedidosLocal, pedidoActivoReciente, reemplazarPedidosLocal, textoFranja } from "./pedidos.js";
@@ -227,6 +229,9 @@ function actualizarContador() {
   });
 }
 
+const cantidades = new Map();
+const preciosLinea = new Map();
+
 function lineaCarrito(item) {
   const media = el("div", { class: "line-media" });
   if (item.imagen) {
@@ -234,12 +239,19 @@ function lineaCarrito(item) {
     img.addEventListener("error", () => img.remove());
     media.append(img);
   }
+  const previa = cantidades.get(item.id);
+  const dir = previa == null || previa === item.cantidad ? "" : item.cantidad > previa ? "is-up" : "is-down";
+  cantidades.set(item.id, item.cantidad);
+  const importe = item.precio * item.cantidad;
+  const precioPrevio = preciosLinea.get(item.id);
+  preciosLinea.set(item.id, importe);
+  const flash = precioPrevio != null && precioPrevio !== importe && !reducido() ? " is-flash" : "";
   const meta = [marcaVisible(item.marca), item.presentacion].filter(Boolean).join(" · ");
   const info = el("div", { class: "line-info" },
     el("p", { class: "line-name" }, item.nombre),
     meta ? el("p", { class: "line-meta" }, meta) : null,
     item.requiere_formula ? el("p", { class: "tag tag-rx" }, "Requiere fórmula médica") : null,
-    el("p", { class: "line-price" }, dinero(item.precio * item.cantidad))
+    el("p", { class: `line-price${flash}` }, dinero(importe))
   );
   const menos = el("button", { type: "button", class: "qty-btn", "aria-label": `Disminuir ${item.nombre}`, onclick: () => fijarCantidad(item.id, item.cantidad - 1) }, icono("minus"));
   const mas = el("button", {
@@ -256,7 +268,7 @@ function lineaCarrito(item) {
   return el("article", { class: "cart-line" },
     media,
     info,
-    el("div", { class: "qty" }, menos, el("span", {}, String(item.cantidad)), mas),
+    el("div", { class: "qty" }, menos, el("span", { class: `qty-n ${dir}`.trim() }, String(item.cantidad)), mas),
     quitar
   );
 }
@@ -304,6 +316,11 @@ export function pintarProgreso(raiz, resumen) {
   barra.hidden = !activo;
   const n = activo ? Math.max(0, Math.min(1, resumen.subtotal / resumen.minimo)) : 0;
   barra.querySelector("[data-progreso-barra]")?.style.setProperty("--n", String(n));
+  const completo = activo && n >= 1;
+  barra.classList.toggle("is-full", completo);
+  if (completo && !barra.querySelector(".progreso-ok")) {
+    barra.querySelector(".progreso-pista")?.append(el("span", { class: "progreso-ok", "aria-hidden": "true" }));
+  }
   const texto = barra.querySelector("[data-progreso-texto]");
   if (texto) texto.textContent = !activo ? "" : resumen.falta > 0 ? `Te faltan ${dinero(resumen.falta)}` : "Alcanzaste el pedido mínimo";
 }
@@ -695,16 +712,13 @@ export function iniciarLayout() {
   pintarDrawer();
   accesosCuenta();
   iniciarBusqueda();
+  iniciarMicro();
+  iniciarTilt();
   navegacion();
   cabeceraFija();
   setInterval(pintarHorario, 60000);
   document.addEventListener("reina:carrito", pintarDrawer);
   document.addEventListener("reina:aviso", (evento) => avisar(evento.detail));
-  document.addEventListener("reina:agregado", (evento) => {
-    const detalle = evento.detail || {};
-    volarAlCarrito(detalle.imagen);
-    avisar(`Agregaste ${detalle.producto?.nombre || "el producto"}`);
-  });
   if (document.body?.dataset.page === "pedidos") {
     document.querySelectorAll("[data-mis-pedidos]").forEach((nodo) => nodo.setAttribute("aria-current", "page"));
   } else {

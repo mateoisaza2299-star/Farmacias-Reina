@@ -7,7 +7,7 @@ import { actualizarPedidoLocal, clasePasoCliente, esToken, etiquetaEstado, inter
 import { bloqueCancelar } from "./pedido-acciones.js";
 import { enlaceWhatsappPedido, montarPago, pagoRechazado, separarPago } from "./pago.js";
 import { iniciarLayout } from "./layout.js";
-import { bloqueEsqueleto, desdeEsqueleto, estadoFallo, marcarEsqueleto } from "./motion.js";
+import { bloqueEsqueleto, desdeEsqueleto, estadoFallo, marcarEsqueleto, vigilarLento } from "./motion.js";
 
 let timer = 0;
 let cargando = false;
@@ -179,9 +179,13 @@ async function refrescar() {
   if (primera) {
     raiz.dataset.visto = "1";
     if (!raiz.querySelector(".callout")) {
-      raiz.replaceChildren(bloqueEsqueleto(), bloqueEsqueleto());
-      marcarEsqueleto(raiz);
+      if (!raiz.querySelector(".skeleton")) raiz.replaceChildren(bloqueEsqueleto(), bloqueEsqueleto());
+      if (!raiz.dataset.sk) marcarEsqueleto(raiz);
       raiz.setAttribute("aria-busy", "true");
+      vigilarLento(raiz, () => {
+        raiz.dataset.visto = "";
+        refrescar();
+      });
     }
   }
   const tokens = tokensVisibles();

@@ -7,7 +7,8 @@ import { enlaceWhatsapp, enlaceWhatsappPedido, mensajePedidoWhatsapp, montarPago
 import { supabase } from "./supabase.js";
 import { el } from "./dom.js";
 import { iniciarLayout, pintarProgreso } from "./layout.js";
-import { animarDinero } from "./motion.js";
+import { animarDinero, desdeEsqueleto, marcarEsqueleto, soltarLento, vigilarLento } from "./motion.js";
+import { micro } from "./micro.js";
 import { guardarDatosCliente, leerDatosCliente } from "./memoria.js";
 
 const TIPOS = {
@@ -59,13 +60,23 @@ function tipoArchivo(archivo) {
   return { tipo, ext: extension === "jpeg" ? "jpg" : extension };
 }
 
-function pintarResumen() {
+let resumenListo = false;
+
+async function pintarResumen() {
   if (confirmado) return;
-  const datos = resumen();
   const lista = document.querySelector("[data-resumen-items]");
   const vacio = document.querySelector("[data-vacio]");
   const caja = document.querySelector("[data-checkout-box]");
   if (!lista || !caja) return;
+  if (!resumenListo && lista.querySelector(".skeleton")) {
+    resumenListo = true;
+    marcarEsqueleto(lista);
+    vigilarLento(lista, () => { resumenListo = false; pintarResumen(); });
+    await desdeEsqueleto(lista);
+    soltarLento(lista);
+    if (confirmado) return;
+  }
+  const datos = resumen();
   const hay = datos.items.length > 0;
   if (vacio) vacio.hidden = hay;
   caja.hidden = !hay;
@@ -427,7 +438,17 @@ async function enviar(evento) {
         mostrarError("Revisa los campos marcados para continuar.");
         return;
       }
-      ruta = await subirFormula(campo("formula").files[0]);
+      document.dispatchEvent(new CustomEvent("reina:formula", { detail: 0.2 }));
+      const avance = setInterval(() => {
+        const barra = document.querySelector(".carga-mini i");
+        const actual = Number(barra?.style.getPropertyValue("--n") || 0.2);
+        document.dispatchEvent(new CustomEvent("reina:formula", { detail: Math.min(0.86, actual + 0.12) }));
+      }, 180);
+      try {
+        ruta = await subirFormula(campo("formula").files[0]);
+      } finally {
+        clearInterval(avance);
+      }
     }
     const { data, error } = await supabase.rpc("crear_pedido", {
       p_items: itemsParaPedido(),
@@ -478,6 +499,9 @@ async function enviar(evento) {
         barrio: campo("barrio").value.trim()
       });
     }
+    const botonEnviar = document.querySelector("[data-enviar]");
+    if (botonEnviar) await micro.confirmar(botonEnviar, "Listo", { dejar: true });
+    document.dispatchEvent(new CustomEvent("reina:formula", { detail: 1 }));
     confirmado = true;
     vaciarCarrito();
     if (enLinea && ruta) {

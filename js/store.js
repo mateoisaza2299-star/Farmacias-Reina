@@ -6,7 +6,7 @@ import { descuento, dinero, patronIlike, sanearBusqueda } from "./format.js";
 import { enlaceWhatsapp } from "./pago.js";
 import { sincronizarCarrito } from "./cart.js";
 import { avisar } from "./layout.js";
-import { atenuar, cruzar, desdeEsqueleto, entrar, estadoFallo, marcarEsqueleto, ocupar, tarjetaEsqueleto, transicionTexto } from "./motion.js";
+import { atenuar, cruzar, desdeEsqueleto, entrar, estadoFallo, flip, marcarEsqueleto, ocupar, soltarLento, tarjetaEsqueleto, transicionTexto, vigilarLento } from "./motion.js";
 import { COLUMNAS, estadoVacio, tarjeta } from "./ui-producto.js";
 
 const POR_PAGINA = 24;
@@ -89,7 +89,8 @@ function marcarCategorias() {
 async function pintarCategorias() {
   const lista = document.querySelector("[data-categorias]");
   if (!lista) return;
-  marcarEsqueleto(lista);
+  if (!lista.dataset.sk) marcarEsqueleto(lista);
+  vigilarLento(lista, () => pintarCategorias());
   await desdeEsqueleto(lista);
   const todas = el("a", {
     class: "chip",
@@ -103,19 +104,26 @@ async function pintarCategorias() {
   }, el("span", { class: "chip-icon" }, icono(categoria.icono)), el("span", {}, categoria.nombre)));
   lista.replaceChildren(todas, ...chips);
   lista.setAttribute("aria-busy", "false");
+  soltarLento(lista);
   entrar(lista.querySelectorAll(".chip"), 8);
   marcarCategorias();
+  document.dispatchEvent(new CustomEvent("reina:chips"));
 }
 
-function esqueleto(cantidad = 12) {
+function esqueleto(cantidad = 8) {
   const grid = document.querySelector("[data-grid]");
   if (!grid) return;
   grid.setAttribute("aria-busy", "true");
-  grid.replaceChildren();
-  for (let i = 0; i < cantidad; i += 1) grid.append(tarjetaEsqueleto());
-  marcarEsqueleto(grid);
+  const actuales = grid.querySelectorAll(":scope > .skeleton-card");
+  const intacto = actuales.length === cantidad && grid.children.length === actuales.length;
+  if (!intacto) {
+    grid.replaceChildren();
+    for (let i = 0; i < cantidad; i += 1) grid.append(tarjetaEsqueleto());
+  }
+  if (!grid.dataset.sk) marcarEsqueleto(grid);
+  vigilarLento(grid, () => cargarCatalogo());
   const estadoTexto = document.querySelector("[data-catalogo-estado]");
-  if (estadoTexto) estadoTexto.textContent = "Cargando productos";
+  if (estadoTexto && estadoTexto.textContent !== "Cargando productos") estadoTexto.textContent = "Cargando productos";
 }
 
 function anunciar(texto) {
@@ -195,6 +203,7 @@ function pintarChips() {
   const nodos = [contador, ...chips];
   if (activos.length) nodos.push(el("button", { type: "button", class: "text-btn", onclick: limpiarTodo }, "Limpiar todo"));
   caja.replaceChildren(...nodos);
+  document.dispatchEvent(new CustomEvent("reina:chips"));
   const abrir = document.querySelector("[data-abrir-filtros]");
   if (abrir) {
     const etiqueta = abrir.querySelector(".btn-label") || abrir;
@@ -250,7 +259,7 @@ function pintarError() {
   anunciar("No pudimos cargar el catálogo. Inténtalo de nuevo.");
 }
 
-async function pintarProductos(lista) {
+async function pintarProductos(lista, opciones = {}) {
   const grid = document.querySelector("[data-grid]");
   if (!grid) return;
   grid.setAttribute("aria-busy", "false");
@@ -259,7 +268,9 @@ async function pintarProductos(lista) {
     pintarVacio();
     return;
   }
-  await cruzar(grid, lista.map(tarjeta));
+  const tarjetas = lista.map(tarjeta);
+  const movido = opciones.modo === "filtro" && opciones.foto ? flip(grid, tarjetas, opciones.foto) : false;
+  if (!movido) await cruzar(grid, tarjetas);
   const inicio = (estado.pagina - 1) * POR_PAGINA + 1;
   const fin = inicio + lista.length - 1;
   transicionTexto(document.querySelector("[data-count]"), estado.total ? `Mostrando ${inicio}–${fin} de ${estado.total}` : `${lista.length} productos`);
@@ -296,12 +307,16 @@ async function cargarCatalogo(opciones = {}) {
   if (!grid) return;
   const boton = opciones.boton;
   if (boton) ocupar(boton, true);
+  const filtrar = opciones.modo === "filtro" && grid.querySelector("[data-id]");
+  const foto = filtrar ? new Map([...grid.querySelectorAll("[data-id]")].map((nodo) => [nodo.dataset.id, nodo.getBoundingClientRect()])) : null;
   if (opciones.modo === "filtro" || opciones.modo === "pagina") await atenuar(grid);
   if (id !== secuencia) {
     if (boton) ocupar(boton, false);
     return;
   }
-  esqueleto();
+  let esperaEsqueleto = 0;
+  if (filtrar) esperaEsqueleto = setTimeout(() => { if (id === secuencia) esqueleto(); }, 280);
+  else esqueleto();
   const desde = (estado.pagina - 1) * POR_PAGINA;
   const hasta = desde + POR_PAGINA - 1;
   let consulta = supabase.from("productos").select(COLUMNAS, { count: "exact" }).eq("activo", true);
@@ -309,6 +324,7 @@ async function cargarCatalogo(opciones = {}) {
   const [campo, direccion] = estado.orden.split(".");
   consulta = consulta.order(campo, { ascending: direccion !== "desc" }).range(desde, hasta);
   const { data, error, count } = await consulta;
+  clearTimeout(esperaEsqueleto);
   if (id !== secuencia) {
     if (boton) ocupar(boton, false);
     return;
@@ -327,7 +343,8 @@ async function cargarCatalogo(opciones = {}) {
     cargarCatalogo();
     return;
   }
-  await pintarProductos(data || []);
+  const usoFoto = filtrar && !grid.querySelector(".skeleton") ? foto : null;
+  await pintarProductos(data || [], { modo: opciones.modo, foto: usoFoto });
   const aviso = sincronizarCarrito(data || []);
   if (aviso) avisar(aviso);
 }
@@ -338,8 +355,9 @@ async function cargarOfertas() {
   if (!contenedor.querySelector(".skeleton")) {
     contenedor.replaceChildren(tarjetaEsqueleto(), tarjetaEsqueleto(), tarjetaEsqueleto(), tarjetaEsqueleto());
   }
-  marcarEsqueleto(contenedor);
+  if (!contenedor.dataset.sk) marcarEsqueleto(contenedor);
   contenedor.setAttribute("aria-busy", "true");
+  vigilarLento(contenedor, () => cargarOfertas());
   const { data, error } = await supabase
     .from("productos")
     .select(COLUMNAS)

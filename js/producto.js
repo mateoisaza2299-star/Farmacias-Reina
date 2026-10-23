@@ -8,6 +8,7 @@ import { agregarProducto } from "./cart.js";
 import { leerVistos, recordarVisto } from "./memoria.js";
 import { iniciarLayout } from "./layout.js";
 import { desdeEsqueleto, entrar, estadoFallo, marcarEsqueleto } from "./motion.js";
+import { micro } from "./micro.js";
 import { COLUMNAS, botonFavorito, estadoVacio, foto, precios, tarjeta } from "./ui-producto.js";
 
 function metas(titulo, descripcion) {
@@ -134,6 +135,7 @@ function pintar(producto) {
         document.dispatchEvent(new CustomEvent("reina:aviso", { detail: error }));
         return;
       }
+      micro.confirmar(boton, "Agregado");
       document.dispatchEvent(new CustomEvent("reina:agregado", { detail: { producto, imagen: media.querySelector("img") } }));
       if (error) document.dispatchEvent(new CustomEvent("reina:aviso", { detail: error }));
     });

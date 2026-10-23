@@ -5,7 +5,8 @@ import { descuento, dinero, esFormula, marcaVisible, tramos } from "./format.js"
 import { enlaceWhatsapp } from "./pago.js";
 import { agregarProducto } from "./cart.js";
 import { alternarFavorito, esFavorito } from "./memoria.js";
-import { prepararImagen } from "./motion.js";
+import { prepararImagen, reducido } from "./motion.js";
+import { micro } from "./micro.js";
 
 export const COLUMNAS = "id,nombre,marca,presentacion,categoria,precio,precio_anterior,stock,requiere_formula,activo,imagen";
 
@@ -101,7 +102,7 @@ export function precios(producto) {
   return el("p", { class: "product-price" },
     el("s", {}, dinero(producto.precio_anterior)),
     el("strong", {}, dinero(producto.precio)),
-    el("span", { class: "off" }, `-${off}%`)
+    el("span", { class: reducido() ? "off" : "off is-flash" }, `-${off}%`)
   );
 }
 
@@ -148,15 +149,14 @@ export function accionProducto(producto, imagen) {
     type: "button",
     class: "btn btn-add",
     disabled: agotado
-  }, el("span", { class: "btn-label" }, agotado ? "Agotado" : "Agregar"));
+  }, el("span", { class: "btn-label" }, agotado ? "Agotado" : "Agregar"), agotado ? null : icono("bag", "btn-ico"));
   boton.addEventListener("click", () => {
     const resultado = agregarProducto(producto);
     if (!resultado.ok) {
       document.dispatchEvent(new CustomEvent("reina:aviso", { detail: resultado.mensaje || "No pudimos agregar el producto." }));
       return;
     }
-    boton.classList.add("is-done");
-    setTimeout(() => boton.classList.remove("is-done"), 600);
+    micro.confirmar(boton, "Agregado");
     document.dispatchEvent(new CustomEvent("reina:agregado", { detail: { producto, imagen } }));
   });
   return boton;
@@ -179,7 +179,7 @@ export function tarjeta(producto) {
     producto.presentacion ? el("span", { class: "product-pres" }, producto.presentacion) : null
   );
   const boton = accionProducto(producto, media.querySelector("img"));
-  return el("article", { class: "product" },
+  return el("article", { class: "product", "data-id": String(producto.id) },
     abrir,
     el("div", { class: "product-buy" },
       el("div", { class: "buy-row" }, precios(producto), botonFavorito(producto)),

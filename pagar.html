@@ -38,6 +38,7 @@
   <link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" as="image" href="assets/logo/logo-192.webp" type="image/webp" fetchpriority="high">
   <link rel="stylesheet" href="css/styles.css">
+  <script src="js/carro-inicial.js"></script>
 </head>
 <body data-page="pagar">
   <a class="skip" href="#contenido">Saltar al contenido</a>
@@ -198,7 +199,12 @@
       <aside class="summary" aria-label="Resumen del pedido">
         <h2>Resumen</h2>
         <p class="tag tag-rx" data-rx-resumen hidden>Incluye productos con fórmula médica</p>
-        <ul data-resumen-items></ul>
+        <ul data-resumen-items aria-busy="true">
+          <li class="sk-line-row" aria-hidden="true"><span class="skeleton sk-line"></span><span class="skeleton sk-line short"></span></li>
+          <li class="sk-line-row" aria-hidden="true"><span class="skeleton sk-line"></span><span class="skeleton sk-line short"></span></li>
+          <li class="sk-line-row" aria-hidden="true"><span class="skeleton sk-line"></span><span class="skeleton sk-line short"></span></li>
+          <li class="sr">Cargando productos</li>
+        </ul>
         <div class="progreso" data-progreso hidden>
           <div class="progreso-pista" aria-hidden="true"><span class="progreso-barra" data-progreso-barra></span></div>
           <p data-progreso-texto role="status"></p>

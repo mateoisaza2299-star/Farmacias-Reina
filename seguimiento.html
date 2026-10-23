@@ -74,7 +74,11 @@
   <main id="contenido" class="container page">
     <h1>Seguimiento del pedido</h1>
     <p class="hint">Actualizamos el estado cada 30 segundos mientras esta pestaña está visible.</p>
-    <div data-seguimiento></div>
+    <div data-seguimiento aria-busy="true">
+      <p class="sr">Cargando productos</p>
+      <div class="skeleton-card sk-block" aria-hidden="true"><div class="skeleton sk-line"></div><div class="skeleton sk-line short"></div><div class="skeleton sk-media sk-short"></div></div>
+      <ol class="steps steps-v" aria-hidden="true"><li><span class="skeleton step-ico"></span><span class="skeleton sk-line"></span></li><li><span class="skeleton step-ico"></span><span class="skeleton sk-line"></span></li><li><span class="skeleton step-ico"></span><span class="skeleton sk-line"></span></li><li><span class="skeleton step-ico"></span><span class="skeleton sk-line"></span></li><li><span class="skeleton step-ico"></span><span class="skeleton sk-line"></span></li></ol>
+    </div>
   </main>
 
   <footer class="footer">

@@ -8,7 +8,7 @@ import { enlaceWhatsapp } from "./pago.js";
 import { abrirCarrito, avisar, iniciarLayout, pintarConteoPedidos } from "./layout.js";
 import { actualizarInsignia } from "./pwa.js";
 import { bloqueCancelar, pedirConfirmacion } from "./pedido-acciones.js";
-import { bloqueEsqueleto, desdeEsqueleto, estadoFallo, marcarEsqueleto } from "./motion.js";
+import { bloqueEsqueleto, desdeEsqueleto, estadoFallo, marcarEsqueleto, vigilarLento } from "./motion.js";
 import { COLUMNAS } from "./ui-producto.js";
 import {
   borrarPedidosLocal,
@@ -295,9 +295,13 @@ async function refrescar() {
   const primera = !raiz.dataset.visto;
   if (primera) {
     raiz.dataset.visto = "1";
-    raiz.replaceChildren(bloqueEsqueleto(), bloqueEsqueleto());
-    marcarEsqueleto(raiz);
+    if (!raiz.querySelector(".skeleton")) raiz.replaceChildren(bloqueEsqueleto(), bloqueEsqueleto());
+    if (!raiz.dataset.sk) marcarEsqueleto(raiz);
     raiz.setAttribute("aria-busy", "true");
+    vigilarLento(raiz, () => {
+      raiz.dataset.visto = "";
+      refrescar();
+    });
   }
   try {
     const remotos = await consultar(locales.map((row) => row.token));

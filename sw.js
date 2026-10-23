@@ -1,4 +1,4 @@
-const SHELL = "reina-shell-v1";
+const SHELL = "reina-shell-v2";
 const IMG = "reina-img-v1";
 const TOPE = 80;
 
@@ -10,6 +10,7 @@ const CASCO = [
   "./offline.html",
   "./css/styles.css",
   "./js/buscar.js",
+  "./js/carro-inicial.js",
   "./js/cart.js",
   "./js/categoria.js",
   "./js/checkout.js",
@@ -23,6 +24,7 @@ const CASCO = [
   "./js/layout.js",
   "./js/legal.js",
   "./js/memoria.js",
+  "./js/micro.js",
   "./js/mis-pedidos.js",
   "./js/motion.js",
   "./js/offline.js",
@@ -35,6 +37,7 @@ const CASCO = [
   "./js/seguimiento.js",
   "./js/store.js",
   "./js/supabase.js",
+  "./js/tilt.js",
   "./js/ui-producto.js"
 ];
 
