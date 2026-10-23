@@ -7,6 +7,7 @@ import { dinero, esFormula, fechaHora, marcaVisible, mensajeError, parseNumero, 
 import { etiquetaEstado, interpretarPedido, prioridadEstado } from "./pedidos.js";
 import { enlaceAvisarCliente, enlaceWhatsapp, separarPago } from "./pago.js";
 import { graficoDia, graficoDona, graficoHorizonte, graficoHoras } from "./admin-graficos.js";
+import { crearTitulares } from "./admin-titulares.js";
 import {
   MOTIVOS_FORMULA,
   MOTIVOS_PEDIDO,
@@ -40,7 +41,8 @@ const SECCIONES = [
   ["formulas", "Fórmulas", "pill"],
   ["productos", "Productos", "box"],
   ["ajustes", "Ajustes", "kit"],
-  ["auditoria", "Auditoría", "shield"]
+  ["auditoria", "Auditoría", "shield"],
+  ["titulares", "Titulares", "user"]
 ];
 const EXTRA = {
   phone: ["M7 4h3.1l1 2.5-1.8 1a12 12 0 0 0 5.2 5.2l1-1.8L18 12v3.1a1.6 1.6 0 0 1-1.8 1.6A13.2 13.2 0 0 1 5.3 5.8 1.6 1.6 0 0 1 7 4z"],
@@ -186,6 +188,28 @@ function ocupado(boton, activo) {
 
 function vacio(titulo, texto) {
   return el("div", { class: "vacio" }, ico("box"), el("h3", {}, titulo), texto ? el("p", { class: "muted" }, texto) : null);
+}
+
+let titularesApi = null;
+
+function titulares() {
+  if (!titularesApi) {
+    titularesApi = crearTitulares({
+      avisar,
+      btn,
+      hojaDe,
+      abrirHoja,
+      cerrarHoja,
+      ocupado,
+      vacio,
+      onCambio: () => {
+        pintarContadores();
+        if (seccion === "inicio") pintarInicioVivo();
+        if (seccion === "titulares") titularesApi.pintar();
+      }
+    });
+  }
+  return titularesApi;
 }
 
 function esqueleto(tipo = "") {
@@ -372,6 +396,9 @@ function pedidoDe(row) {
   base.aprobado_en = row.aprobado_en || null;
   base.despachado_en = row.despachado_en || null;
   base.entregado_en = row.entregado_en || null;
+  base.politica_version = row.politica_version || "";
+  base.autorizo_datos_en = row.autorizo_datos_en || null;
+  base.autorizo_formula_en = row.autorizo_formula_en || null;
   return base;
 }
 
@@ -1270,7 +1297,20 @@ function atencionItems() {
     }
   });
   items.sort((a, b) => (a.nivel === b.nivel ? b.orden - a.orden : (a.nivel === "rojo" ? -1 : 1)));
-  return items.slice(0, 8);
+  const extra = titulares().alerta();
+  const base = items.slice(0, extra.n > 0 ? 7 : 8);
+  if (extra.n > 0) {
+    const texto = extra.n === 1
+      ? "1 solicitud de titular por vencer o vencida"
+      : `${extra.n} solicitudes de titulares por vencer o vencidas`;
+    base.unshift({
+      nivel: extra.nivel,
+      texto,
+      enlace: "#titulares",
+      ir: () => mostrarSeccion("titulares")
+    });
+  }
+  return base;
 }
 
 function pintarInicioVivo() {
@@ -1281,7 +1321,21 @@ function pintarInicioVivo() {
     const items = atencionItems();
     caja.replaceChildren(
       el("h2", {}, "Requiere tu atención"),
-      ...(items.length ? items.map((item) => el("button", { type: "button", class: "atencion", "data-nivel": item.nivel, onclick: item.ir }, ico("alert"), el("span", {}, item.texto), el("small", {}, "Abrir"))) : [el("p", { class: "muted" }, "Nada urgente por ahora.")])
+      ...(items.length ? items.map((item) => {
+        const hijos = [ico("alert"), el("span", {}, item.texto), el("small", {}, "Abrir")];
+        if (item.enlace) {
+          return el("a", {
+            href: item.enlace,
+            class: "atencion",
+            "data-nivel": item.nivel,
+            onclick: (evento) => {
+              evento.preventDefault();
+              item.ir();
+            }
+          }, ...hijos);
+        }
+        return el("button", { type: "button", class: "atencion", "data-nivel": item.nivel, onclick: item.ir }, ...hijos);
+      }) : [el("p", { class: "muted" }, "Nada urgente por ahora.")])
     );
   }
   if (ultimos) {
@@ -1448,8 +1502,10 @@ async function cambiarTienda() {
 function pintarContadores() {
   const activos = pedidos.filter((pedido) => esActivo(pedido.estado)).length;
   const formulas = pedidos.filter((pedido) => pedido.estado === "revision").length;
+  const derechos = titularesApi ? titularesApi.alerta().n : 0;
   document.querySelectorAll("[data-cuenta]").forEach((nodo) => {
-    const n = nodo.dataset.cuenta === "pedidos" ? activos : formulas;
+    const clave = nodo.dataset.cuenta;
+    const n = clave === "pedidos" ? activos : clave === "formulas" ? formulas : clave === "titulares" ? derechos : 0;
     nodo.hidden = n <= 0;
     nodo.textContent = String(n);
   });
@@ -1481,16 +1537,18 @@ function mostrarSeccion(nombre) {
   if (nombre === "productos") cargarProductos();
   if (nombre === "ajustes") cargarAjustes();
   if (nombre === "auditoria") cargarAuditoria();
+  if (nombre === "titulares") titulares().mostrar();
 }
 
 function armarNav() {
   const lado = document.querySelector("[data-nav]");
   const dock = document.querySelector("[data-dock]");
   SECCIONES.forEach(([id, etiqueta, iconoNombre]) => {
-    const cuenta = id === "pedidos" || id === "formulas" ? el("span", { class: "contador", "data-cuenta": id, hidden: true }, "0") : null;
+    const cuenta = id === "pedidos" || id === "formulas" || id === "titulares" ? el("span", { class: "contador", "data-cuenta": id, hidden: true }, "0") : null;
     const item = el("button", { type: "button", class: "nav-item", "data-ir": id, onclick: () => mostrarSeccion(id) }, ico(iconoNombre), el("span", {}, etiqueta), cuenta);
     lado.append(item);
-    const movil = el("button", { type: "button", "data-ir": id, onclick: () => mostrarSeccion(id) }, ico(iconoNombre), el("span", {}, etiqueta === "Auditoría" ? "Auditar" : etiqueta));
+    const corta = etiqueta === "Auditoría" ? "Auditar" : etiqueta === "Titulares" ? "Titular" : etiqueta;
+    const movil = el("button", { type: "button", "data-ir": id, onclick: () => mostrarSeccion(id) }, ico(iconoNombre), el("span", {}, corta));
     if (cuenta) movil.append(el("span", { class: "contador", "data-cuenta": id, hidden: true }, "0"));
     dock.append(movil);
   });
@@ -2268,6 +2326,7 @@ function programar() {
   poll = setInterval(() => {
     if (document.visibilityState !== "visible") return;
     cargarPedidos(true);
+    titulares().cargar(true);
     if (seccion === "inicio") cargarStock().then(() => pintarInicioVivo());
   }, 30000);
   document.addEventListener("visibilitychange", () => {
@@ -2301,6 +2360,7 @@ function armar() {
   armarProductos();
   armarAjustes();
   armarAuditoria();
+  titulares().armar(document.querySelector("[data-panel='titulares']"));
   pintarPreferencias();
   document.querySelector("[data-admin-email]").textContent = usuario?.email || "";
   document.querySelector("[data-salir]").addEventListener("click", salir);
@@ -2430,7 +2490,7 @@ async function iniciar() {
     document.querySelector("[data-wait]").hidden = true;
     document.querySelector("[data-app]").hidden = false;
     armar();
-    await Promise.all([cargarPedidos(false), cargarStock(), cargarDomiciliarios(), leerConfigFila().catch((error) => avisar(mensajeError(error)))]);
+    await Promise.all([cargarPedidos(false), cargarStock(), cargarDomiciliarios(), leerConfigFila().catch((error) => avisar(mensajeError(error))), titulares().cargar(true)]);
     if (seccion === "inicio") await cargarResumen();
     pintarInicioVivo();
     pintarContadores();

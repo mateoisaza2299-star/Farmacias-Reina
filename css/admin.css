@@ -399,6 +399,7 @@ html[data-densidad="compacta"] .tarjeta { padding: 10px; }
   align-items: center;
   gap: 10px;
   text-align: left;
+  text-decoration: none;
   border-radius: 14px;
   border: 1px solid var(--borde);
   background: var(--card);
@@ -442,6 +443,30 @@ html[data-tema="oscuro"] .insignia[data-estado="entregado"],
 html[data-tema="oscuro"] .insignia[data-forma="efectivo"] { background: #052e16; color: #86efac; }
 html[data-tema="oscuro"] .insignia[data-estado="rechazado"],
 html[data-tema="oscuro"] .insignia[data-estado="cancelado"] { background: #450a0a; color: #fecaca; }
+
+.luz {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.luz-punto { width: 10px; height: 10px; border-radius: 50%; background: currentColor; flex: none; }
+.luz-verde { background: #dcfce7; color: #166534; }
+.luz-ambar { background: #fef3c7; color: #92400e; }
+.luz-rojo { background: #fee2e2; color: #b91c1c; }
+html[data-tema="oscuro"] .luz-verde { background: #052e16; color: #86efac; }
+html[data-tema="oscuro"] .luz-ambar { background: #3b2a0a; color: #fcd34d; }
+html[data-tema="oscuro"] .luz-rojo { background: #450a0a; color: #fecaca; }
+.busca-titular { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+.busca-titular .campo { flex: 1 1 16rem; }
+.busca-titular .btn { flex: 1 1 8rem; }
+.titular-acciones .btn { flex: 1 1 14rem; }
+.titular-datos { display: grid; gap: 4px; }
+.titular-aviso { margin: 0; }
 
 .tablero { display: flex; gap: 12px; overflow-x: auto; align-items: flex-start; min-width: 0; padding-bottom: 8px; }
 .columna {
@@ -738,6 +763,10 @@ tr.is-bad td { color: var(--rojo-texto); }
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
   }
+}
+
+@media (max-width: 420px) {
+  .dock button { font-size: 10px; padding: 0 1px; }
 }
 
 @media print {
